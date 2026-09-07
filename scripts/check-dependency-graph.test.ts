@@ -65,6 +65,47 @@ test('accepts dependencies that point toward core', async () => {
   expect(result.status, result.stderr).toBe(0);
 });
 
+test('accepts independent evidence and unit normalization packages', async () => {
+  const root = await createWorkspace([
+    { name: '@pcpartcheck/core' },
+    {
+      name: '@pcpartcheck/evidence',
+      dependencies: { '@pcpartcheck/core': 'workspace:*' },
+    },
+    {
+      name: '@pcpartcheck/unit-normalization',
+      dependencies: { '@pcpartcheck/core': 'workspace:*' },
+    },
+  ]);
+
+  const result = runDependencyCheck(root);
+
+  expect(result.status, result.stderr).toBe(0);
+});
+
+test('rejects BuildCores dependency on the evidence package', async () => {
+  const root = await createWorkspace([
+    { name: '@pcpartcheck/core' },
+    { name: '@pcpartcheck/evidence' },
+    { name: '@pcpartcheck/unit-normalization' },
+    {
+      name: '@pcpartcheck/provider-buildcores',
+      dependencies: {
+        '@pcpartcheck/core': 'workspace:*',
+        '@pcpartcheck/evidence': 'workspace:*',
+        '@pcpartcheck/unit-normalization': 'workspace:*',
+      },
+    },
+  ]);
+
+  const result = runDependencyCheck(root);
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain(
+    '@pcpartcheck/provider-buildcores -> @pcpartcheck/evidence is not allowed',
+  );
+});
+
 test('rejects every internal dependency declared by core', async () => {
   const root = await createWorkspace([
     {

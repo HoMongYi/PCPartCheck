@@ -10,6 +10,9 @@ export default defineConfig({
       '@pcpartcheck/evidence': fileURLToPath(
         new URL('./packages/evidence/src/index.ts', import.meta.url),
       ),
+      '@pcpartcheck/unit-normalization': fileURLToPath(
+        new URL('./packages/unit-normalization/src/index.ts', import.meta.url),
+      ),
     },
   },
   test: {

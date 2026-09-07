@@ -4,7 +4,10 @@
     "noEmit": true,
     "paths": {
       "@pcpartcheck/core": ["./packages/core/src/index.ts"],
-      "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"]
+      "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
+      "@pcpartcheck/unit-normalization": [
+        "./packages/unit-normalization/src/index.ts"
+      ]
     },
     "types": ["node", "vitest/globals"]
   },

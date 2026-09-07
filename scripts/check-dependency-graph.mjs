@@ -5,6 +5,7 @@ import process from 'node:process';
 const allowedInternalDependencies = new Map([
   ['@pcpartcheck/core', []],
   ['@pcpartcheck/evidence', ['@pcpartcheck/core']],
+  ['@pcpartcheck/unit-normalization', ['@pcpartcheck/core']],
   ['@pcpartcheck/rules-standard', ['@pcpartcheck/core']],
   ['@pcpartcheck/power', ['@pcpartcheck/core']],
   ['@pcpartcheck/identity', ['@pcpartcheck/core', '@pcpartcheck/evidence']],
@@ -20,9 +21,9 @@ const allowedInternalDependencies = new Map([
     '@pcpartcheck/provider-buildcores',
     [
       '@pcpartcheck/core',
-      '@pcpartcheck/evidence',
       '@pcpartcheck/identity',
       '@pcpartcheck/provider-sdk',
+      '@pcpartcheck/unit-normalization',
     ],
   ],
   [

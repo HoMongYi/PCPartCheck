@@ -6,7 +6,7 @@
 
 1. Monorepo, CI, dependency graph 검사 — `chore: bootstrap monorepo and CI`
 2. Canonical Spec Schema와 구조화 subtype — `feat(core): define canonical spec schema`
-3. Raw Evidence와 Unit Normalization — `feat(evidence): add raw evidence and unit normalization`
+3. Raw Evidence와 독립 Unit Normalization 패키지 — `feat(evidence): add raw evidence and unit normalization`
 4. Capability, Policy, Rule Contract — `feat(core): add capability policy and rule contracts`
 5. Status, Decision, Coverage 집계 — `feat(core): aggregate compatibility results`
 6. Build Intent와 InstallationContext — `feat(core): add build intent and installation context`
@@ -41,6 +41,7 @@
 ## 고정 Contract
 
 - `core`는 다른 `@pcpartcheck/*` 패키지를 import하지 않는다. 의존성 화살표는 사용하는 쪽에서 제공하는 쪽을 향한다.
+- `evidence`와 `unit-normalization`은 서로 의존하지 않고 각각 `core`만 import한다.
 - Rule은 versioned Canonical Spec만 읽는다. Provider의 raw field는 Rule 입력이 아니다.
 - 메모리 전송률은 `dataRateMtps`로 저장한다. 실제 clock만 `clockMHz`로 표현한다.
 - `CapabilityPolicy`는 `REQUIRED`, `ADVISORY`, `DISABLED` 중 한 가지 `mode`만 가진다.
