@@ -11,7 +11,7 @@ import type {
 } from '../src/index.js';
 
 const cpu = {
-  schemaVersion: '1.0.0',
+  schemaVersion: '1.1.0',
   partId: '11111111-1111-4111-8111-111111111111',
   category: 'CPU',
   manufacturer: 'Example',
@@ -47,7 +47,7 @@ function createEngine(
     versions: {
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
-      canonicalSchemaVersion: '1.0.0',
+      canonicalSchemaVersion: '1.1.0',
       identityMapperVersion: '0.1.0',
       providerVersions: [
         {
@@ -66,7 +66,7 @@ function input(
   capabilities: PolicyProfile['capabilities'],
 ): CompatibilityCheckInput {
   return {
-    build: { schemaVersion: '1.0.0', parts: [cpu] },
+    build: { schemaVersion: '1.1.0', parts: [cpu] },
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext,
     policyProfile: {
@@ -215,7 +215,7 @@ test('snapshot captures every version and immutable audit input', async () => {
     engineVersion: '0.1.0',
     ruleSetVersion: '0.1.0',
     policyVersion: '1.0.0',
-    canonicalSchemaVersion: '1.0.0',
+    canonicalSchemaVersion: '1.1.0',
     identityMapperVersion: '0.1.0',
     providerVersions: [
       {
@@ -256,6 +256,12 @@ test('replay reproduces a matching snapshot and rejects version drift', async ()
   await expect(
     engine.replay({ ...snapshot, engineVersion: '0.0.9' }),
   ).rejects.toThrow('Replay version mismatch for engineVersion');
+  await expect(
+    engine.replay({ ...snapshot, canonicalSchemaVersion: '1.0.0' }),
+  ).rejects.toMatchObject({
+    name: 'ReplayVersionMismatchError',
+    field: 'canonicalSchemaVersion',
+  });
 });
 
 test('invalid canonical input is rejected instead of becoming pass', async () => {
@@ -267,7 +273,7 @@ test('invalid canonical input is rejected instead of becoming pass', async () =>
       {
         ...checkInput,
         build: {
-          schemaVersion: '1.0.0',
+          schemaVersion: '1.1.0',
           parts: [{ ...cpu, spec: { rawProviderSocket: 'AM5' } }],
         },
       } as unknown as CompatibilityCheckInput,

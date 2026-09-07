@@ -15,7 +15,7 @@ function board(
   pcieSlots?: readonly PcieSlotSpec[],
 ): CanonicalPart {
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '1.1.0',
     partId: '22222222-2222-4222-8222-222222222222',
     category: 'MOTHERBOARD',
     manufacturer: 'Example',
@@ -38,7 +38,7 @@ function storage(
 ): CanonicalPart {
   const digit = String(index).repeat(8);
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '1.1.0',
     partId: `${digit}-${String(index).repeat(4)}-4${String(index).repeat(3)}-8${String(index).repeat(3)}-${String(index).repeat(12)}`,
     category: 'STORAGE',
     manufacturer: 'Example',

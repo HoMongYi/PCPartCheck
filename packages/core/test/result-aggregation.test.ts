@@ -77,6 +77,7 @@ test('advisory incompatibility warns without blocking', () => {
     decision: 'ALLOW_WITH_WARNING',
     issues: {
       blockingRuleIds: [],
+      reviewRuleIds: [],
       advisoryRuleIds: ['rgb'],
     },
   });

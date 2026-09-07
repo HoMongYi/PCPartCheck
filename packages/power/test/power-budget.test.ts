@@ -29,7 +29,7 @@ function part(
 ): CanonicalPart {
   const digit = String(idDigit);
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '1.1.0',
     partId: `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`,
     category,
     manufacturer: 'Example',
@@ -62,7 +62,7 @@ function baseParts(vendorRecommendedPsuW = 650): CanonicalPart[] {
 }
 
 function build(parts: readonly CanonicalPart[]): CanonicalBuild {
-  return { schemaVersion: '1.0.0', parts: [...parts] };
+  return { schemaVersion: '1.1.0', parts: [...parts] };
 }
 
 const installationContext: InstallationContext = {

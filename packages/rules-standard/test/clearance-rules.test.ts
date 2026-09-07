@@ -34,7 +34,7 @@ function clearanceCase(
   }> = {},
 ): CanonicalPart {
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '1.1.0',
     partId: '44444444-4444-4444-8444-444444444444',
     category: 'PC_CASE',
     manufacturer: 'Example',

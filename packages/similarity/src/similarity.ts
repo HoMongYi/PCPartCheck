@@ -30,6 +30,7 @@ export interface SimilarityQuery extends FieldEvidenceQuery {
 
 export interface SimilarFieldEvidenceMatch {
   readonly evidenceId: string;
+  readonly issueType: FieldEvidenceIssueType;
   readonly similarityScore: number;
   readonly matchedFields: readonly string[];
   readonly differences: readonly string[];
@@ -284,6 +285,7 @@ function scoreRecord(
   const similarityScore = totalWeight === 0 ? 0 : weightedScore / totalWeight;
   return {
     evidenceId: record.evidenceId,
+    issueType: record.issueType,
     similarityScore: Number(similarityScore.toFixed(6)),
     matchedFields: [...matchedFields].sort(),
     differences: [...differences].sort(),

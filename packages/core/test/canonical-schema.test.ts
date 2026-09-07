@@ -117,10 +117,10 @@ test('memory uses MT/s data rate and reserves MHz for actual clock', () => {
   ).toBe(false);
 });
 
-test('canonical parts carry the exact schema version and structured spec', () => {
+test('new canonical parts use schema version 1.1.0 and structured spec', () => {
   const schema = exportedSchema('CanonicalPartSchema');
   const cpu = {
-    schemaVersion: '1.0.0',
+    schemaVersion: '1.1.0',
     partId: 'a0dca831-d8d7-4f2c-9e81-d94d260dd5d7',
     category: 'CPU',
     manufacturer: 'Example',
@@ -136,6 +136,9 @@ test('canonical parts carry the exact schema version and structured spec', () =>
 
   expect(Value.Check(schema, cpu)).toBe(true);
   expect(Value.Check(schema, { ...cpu, partId: 'cpu-1' })).toBe(false);
+  expect(Value.Check(schema, { ...cpu, schemaVersion: '1.0.0' })).toBe(
+    false,
+  );
   expect(Value.Check(schema, { ...cpu, schemaVersion: '2.0.0' })).toBe(
     false,
   );
@@ -157,21 +160,31 @@ test('part category remains a closed public literal union', () => {
 
 test('PSU spec can carry normalized physical length for case clearance', () => {
   const schema = exportedSchema('CanonicalPartSchema');
+  const psu = {
+    schemaVersion: '1.1.0',
+    partId: '55555555-5555-4555-8555-555555555555',
+    category: 'PSU',
+    manufacturer: 'Example',
+    model: 'PSU',
+    status: 'ACTIVE',
+    spec: {
+      formFactor: 'ATX',
+      ratedPowerW: 850,
+      powerConnectors: [],
+    },
+  };
 
+  expect(Value.Check(schema, psu)).toBe(true);
   expect(
-    Value.Check(schema, {
-      schemaVersion: '1.0.0',
-      partId: '55555555-5555-4555-8555-555555555555',
-      category: 'PSU',
-      manufacturer: 'Example',
-      model: 'PSU',
-      status: 'ACTIVE',
-      spec: {
-        formFactor: 'ATX',
-        ratedPowerW: 850,
-        lengthMm: 160,
-        powerConnectors: [],
-      },
-    }),
+    Value.Check(schema, { ...psu, spec: { ...psu.spec, lengthMm: 160 } }),
   ).toBe(true);
+  expect(
+    Value.Check(schema, { ...psu, spec: { ...psu.spec, lengthMm: 0 } }),
+  ).toBe(false);
+  expect(
+    Value.Check(schema, { ...psu, spec: { ...psu.spec, lengthMm: -1 } }),
+  ).toBe(false);
+  expect(
+    Value.Check(schema, { ...psu, spec: { ...psu.spec, lengthMm: '160' } }),
+  ).toBe(false);
 });

@@ -177,6 +177,7 @@ describe('rankSimilarFieldEvidence', () => {
   test('returns no compatibility status or decision even for failure evidence', () => {
     const [result] = ranker()({ query, records: [fieldRecord('failure')] });
 
+    expect(result).toMatchObject({ issueType: 'PHYSICAL_CLEARANCE' });
     expect(result).not.toHaveProperty('status');
     expect(result).not.toHaveProperty('decision');
   });
