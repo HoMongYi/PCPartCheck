@@ -8,3 +8,5 @@ export * from './canonical/primitives.js';
 export * from './canonical/radiator-mount-spec.js';
 export * from './canonical/rgb-header-spec.js';
 export * from './canonical/usb-header-spec.js';
+export * from './capability.js';
+export * from './rule.js';
