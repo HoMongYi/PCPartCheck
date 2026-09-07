@@ -3,9 +3,13 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
+      "@pcpartcheck/api-contracts": [
+        "./packages/api-contracts/src/index.ts"
+      ],
       "@pcpartcheck/core": ["./packages/core/src/index.ts"],
       "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
       "@pcpartcheck/identity": ["./packages/identity/src/index.ts"],
+      "@pcpartcheck/http-server": ["./packages/http-server/src/index.ts"],
       "@pcpartcheck/llm-toolkit": ["./packages/llm-toolkit/src/index.ts"],
       "@pcpartcheck/power": ["./packages/power/src/index.ts"],
       "@pcpartcheck/provider-buildcores": [
