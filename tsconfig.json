@@ -6,6 +6,7 @@
       "@pcpartcheck/core": ["./packages/core/src/index.ts"],
       "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
       "@pcpartcheck/identity": ["./packages/identity/src/index.ts"],
+      "@pcpartcheck/llm-toolkit": ["./packages/llm-toolkit/src/index.ts"],
       "@pcpartcheck/power": ["./packages/power/src/index.ts"],
       "@pcpartcheck/provider-buildcores": [
         "./packages/provider-buildcores/src/index.ts"
