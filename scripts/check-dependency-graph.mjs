@@ -63,6 +63,18 @@ const allowedInternalDependencies = new Map([
     ],
   ],
   ['@pcpartcheck/http-server', ['@pcpartcheck/api-contracts']],
+  [
+    '@pcpartcheck/reference-api',
+    [
+      '@pcpartcheck/api-contracts',
+      '@pcpartcheck/core',
+      '@pcpartcheck/demo-data',
+      '@pcpartcheck/http-server',
+      '@pcpartcheck/power',
+      '@pcpartcheck/rules-standard',
+      '@pcpartcheck/similarity',
+    ],
+  ],
   ['@pcpartcheck/demo-web', ['@pcpartcheck/api-contracts']],
 ]);
 

@@ -2,6 +2,7 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import {
   CompatibilityCheckRequestSchema,
+  DemoDashboardResponseSchema,
   HealthResponseSchema,
   ResultSnapshotResponseSchema,
   SimilarEvidenceRequestSchema,
@@ -74,6 +75,17 @@ export async function buildHttpServer(
     },
     async (request) =>
       options.services.findSimilarEvidence(request.body as SimilarEvidenceRequest),
+  );
+
+  server.get(
+    '/v1/demo',
+    {
+      schema: {
+        tags: ['demo'],
+        response: { 200: DemoDashboardResponseSchema },
+      },
+    },
+    async () => options.services.getDemoDashboard(),
   );
 
   server.get('/openapi.json', { schema: { hide: true } }, async () =>

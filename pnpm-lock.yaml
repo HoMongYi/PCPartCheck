@@ -134,6 +134,30 @@ importers:
         specifier: 5.0.0
         version: 5.0.0(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.0))
 
+  apps/reference-api:
+    dependencies:
+      '@pcpartcheck/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@pcpartcheck/demo-data':
+        specifier: workspace:*
+        version: link:../../packages/demo-data
+      '@pcpartcheck/http-server':
+        specifier: workspace:*
+        version: link:../../packages/http-server
+      '@pcpartcheck/power':
+        specifier: workspace:*
+        version: link:../../packages/power
+      '@pcpartcheck/rules-standard':
+        specifier: workspace:*
+        version: link:../../packages/rules-standard
+      '@pcpartcheck/similarity':
+        specifier: workspace:*
+        version: link:../../packages/similarity
+
   packages/api-contracts:
     dependencies:
       '@pcpartcheck/core':
@@ -154,6 +178,15 @@ importers:
       '@sinclair/typebox':
         specifier: 0.34.52
         version: 0.34.52
+
+  packages/demo-data:
+    dependencies:
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../core
+      '@pcpartcheck/evidence':
+        specifier: workspace:*
+        version: link:../evidence
 
   packages/evidence:
     dependencies:

@@ -10,6 +10,9 @@ export default defineConfig({
       '@pcpartcheck/core': fileURLToPath(
         new URL('./packages/core/src/index.ts', import.meta.url),
       ),
+      '@pcpartcheck/demo-data': fileURLToPath(
+        new URL('./packages/demo-data/src/index.ts', import.meta.url),
+      ),
       '@pcpartcheck/evidence': fileURLToPath(
         new URL('./packages/evidence/src/index.ts', import.meta.url),
       ),

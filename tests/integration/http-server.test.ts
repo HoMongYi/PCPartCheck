@@ -54,6 +54,29 @@ async function createServer() {
         reason: '같은 케이스와 라디에이터 배치를 사용했습니다.',
       },
     ]),
+    getDemoDashboard: vi.fn(async () => ({
+      scenarios: [
+        {
+          id: 'compatible-platform',
+          title: '기본 부품이 모두 맞는 구성',
+          summary: '필수 규칙이 모두 통과한 예시입니다.',
+          status: 'PASS',
+          decision: 'ALLOW',
+          blockingRuleIds: [],
+          advisoryRuleIds: [],
+        },
+      ],
+      similarEvidence: [
+        {
+          evidenceId: 'similar-1',
+          issueType: 'PHYSICAL_CLEARANCE',
+          similarityScore: 0.925,
+          matchedFields: ['parts.PC_CASE'],
+          differences: ['measurements.gpu.lengthMm'],
+          reason: '같은 케이스와 라디에이터 배치를 사용했습니다.',
+        },
+      ],
+    })),
   };
   const server = await (candidate as ServerFactory)({ services, logger: false });
   servers.push(server);
@@ -152,6 +175,22 @@ describe('Fastify reference API', () => {
     expect(response.json()).not.toHaveProperty('decision');
   });
 
+  test('returns engine-backed demo scenarios and reference-only similar evidence', async () => {
+    const { server } = await createServer();
+    const response = await server.inject({ method: 'GET', url: '/v1/demo' });
+    const payload = response.json() as {
+      readonly similarEvidence: readonly Readonly<Record<string, unknown>>[];
+    };
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      scenarios: [{ id: 'compatible-platform', status: 'PASS', decision: 'ALLOW' }],
+      similarEvidence: [{ evidenceId: 'similar-1', issueType: 'PHYSICAL_CLEARANCE' }],
+    });
+    expect(payload.similarEvidence[0]).not.toHaveProperty('decision');
+    expect(payload.similarEvidence[0]).not.toHaveProperty('status');
+  });
+
   test('publishes OpenAPI paths and Swagger UI', async () => {
     const { server } = await createServer();
     const openapi = await server.inject({ method: 'GET', url: '/openapi.json' });
@@ -164,6 +203,7 @@ describe('Fastify reference API', () => {
         '/health': expect.any(Object),
         '/v1/checks': expect.any(Object),
         '/v1/evidence/similar': expect.any(Object),
+        '/v1/demo': expect.any(Object),
       },
     });
     expect(docs.statusCode).toBe(200);

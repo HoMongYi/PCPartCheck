@@ -121,7 +121,50 @@ export const SimilarEvidenceResponseSchema = Type.Array(
 );
 export type SimilarEvidenceResponse = readonly SimilarFieldEvidenceMatch[];
 
+const CompatibilityStatusSchema = Type.Union([
+  Type.Literal('PASS'),
+  Type.Literal('WARNING'),
+  Type.Literal('CONDITIONAL'),
+  Type.Literal('UNKNOWN'),
+  Type.Literal('REVIEW_REQUIRED'),
+  Type.Literal('INCOMPATIBLE'),
+  Type.Literal('NOT_CHECKED'),
+]);
+
+const CompatibilityDecisionSchema = Type.Union([
+  Type.Literal('ALLOW'),
+  Type.Literal('ALLOW_WITH_WARNING'),
+  Type.Literal('ALLOW_IF_CONDITIONS_MET'),
+  Type.Literal('REVIEW'),
+  Type.Literal('BLOCK'),
+  Type.Literal('NO_DECISION'),
+]);
+
+export const DemoScenarioResultSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1 }),
+    title: Type.String({ minLength: 1 }),
+    summary: Type.String({ minLength: 1 }),
+    status: CompatibilityStatusSchema,
+    decision: CompatibilityDecisionSchema,
+    blockingRuleIds: Type.Array(Type.String()),
+    advisoryRuleIds: Type.Array(Type.String()),
+  },
+  { additionalProperties: false },
+);
+export type DemoScenarioResult = Static<typeof DemoScenarioResultSchema>;
+
+export const DemoDashboardResponseSchema = Type.Object(
+  {
+    scenarios: Type.Array(DemoScenarioResultSchema),
+    similarEvidence: SimilarEvidenceResponseSchema,
+  },
+  { additionalProperties: false },
+);
+export type DemoDashboardResponse = Static<typeof DemoDashboardResponseSchema>;
+
 export interface PcPartCheckApiServices {
   checkCompatibility(request: CompatibilityCheckRequest): Promise<ResultSnapshot>;
   findSimilarEvidence(request: SimilarEvidenceRequest): Promise<SimilarEvidenceResponse>;
+  getDemoDashboard(): Promise<DemoDashboardResponse>;
 }

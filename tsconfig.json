@@ -7,6 +7,7 @@
         "./packages/api-contracts/src/index.ts"
       ],
       "@pcpartcheck/core": ["./packages/core/src/index.ts"],
+      "@pcpartcheck/demo-data": ["./packages/demo-data/src/index.ts"],
       "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
       "@pcpartcheck/identity": ["./packages/identity/src/index.ts"],
       "@pcpartcheck/http-server": ["./packages/http-server/src/index.ts"],
