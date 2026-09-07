@@ -8,6 +8,17 @@ export type JsonValue =
   | readonly JsonValue[]
   | { readonly [key: string]: JsonValue };
 
+export const JsonValueSchema = Type.Recursive((jsonValue) =>
+  Type.Union([
+    Type.Null(),
+    Type.Boolean(),
+    Type.Number(),
+    Type.String(),
+    Type.Array(jsonValue),
+    Type.Record(Type.String(), jsonValue),
+  ]),
+);
+
 export const PositiveIntegerSchema = Type.Integer({ minimum: 1 });
 export const NonNegativeIntegerSchema = Type.Integer({ minimum: 0 });
 export const PositiveNumberSchema = Type.Number({ exclusiveMinimum: 0 });
