@@ -15,6 +15,7 @@
     "check:deps": "node scripts/check-dependency-graph.mjs",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "corepack pnpm build && playwright test",
     "test:integration": "vitest run tests/integration --passWithNoTests",
     "test:unit": "vitest run --exclude tests/integration/**",
     "typecheck": "tsc --noEmit"
@@ -23,6 +24,7 @@
     "@eslint/js": "10.0.1",
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.13.3",
+    "@playwright/test": "1.63.0",
     "better-sqlite3": "13.0.3",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
