@@ -22,11 +22,12 @@ export function context(
   parts: readonly CanonicalPart[],
   capabilityId = 'fixture',
   config?: Readonly<Record<string, string | number | boolean | null>>,
+  currentInstallationContext: InstallationContext = installationContext,
 ): CompatibilityRuleContext {
   return {
     build: { schemaVersion: '1.0.0', parts: [...parts] },
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
-    installationContext,
+    installationContext: currentInstallationContext,
     policy: {
       capabilityId,
       mode: 'REQUIRED',
@@ -112,5 +113,56 @@ export function pcCase(
     model: 'Case',
     status: 'ACTIVE',
     spec: { supportedMotherboardFormFactors },
+  };
+}
+
+export function gpu(lengthMm?: number): CanonicalPart {
+  return {
+    schemaVersion: '1.0.0',
+    partId: '55555555-5555-4555-8555-555555555555',
+    category: 'GPU',
+    manufacturer: 'Example',
+    model: 'GPU',
+    status: 'ACTIVE',
+    spec: { ...(lengthMm === undefined ? {} : { lengthMm }) },
+  };
+}
+
+export function cpuCooler(
+  overrides: Partial<{
+    coolerType: 'AIR' | 'AIO' | 'CUSTOM_LOOP';
+    supportedSockets: string[];
+    heightMm: number;
+  }> = {},
+): CanonicalPart {
+  return {
+    schemaVersion: '1.0.0',
+    partId: '66666666-6666-4666-8666-666666666666',
+    category: 'CPU_COOLER',
+    manufacturer: 'Example',
+    model: 'Cooler',
+    status: 'ACTIVE',
+    spec: {
+      coolerType: overrides.coolerType ?? 'AIR',
+      supportedSockets: overrides.supportedSockets ?? ['AM5'],
+      ...(overrides.heightMm === undefined ? {} : { heightMm: overrides.heightMm }),
+    },
+  };
+}
+
+export function psu(lengthMm?: number): CanonicalPart {
+  return {
+    schemaVersion: '1.0.0',
+    partId: '77777777-7777-4777-8777-777777777777',
+    category: 'PSU',
+    manufacturer: 'Example',
+    model: 'PSU',
+    status: 'ACTIVE',
+    spec: {
+      formFactor: 'ATX',
+      ratedPowerW: 850,
+      powerConnectors: [],
+      ...(lengthMm === undefined ? {} : { lengthMm }),
+    },
   };
 }

@@ -115,6 +115,7 @@ export const PsuSpecSchema = Type.Object(
   {
     formFactor: PsuFormFactorSchema,
     ratedPowerW: PositiveNumberSchema,
+    lengthMm: Type.Optional(PositiveNumberSchema),
     atxVersion: Type.Optional(Type.String({ minLength: 1 })),
     powerConnectors: Type.Array(PowerConnectorSpecSchema),
   },

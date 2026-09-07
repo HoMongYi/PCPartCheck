@@ -154,3 +154,24 @@ test('part category remains a closed public literal union', () => {
     | 'CASE_FAN'
   >();
 });
+
+test('PSU spec can carry normalized physical length for case clearance', () => {
+  const schema = exportedSchema('CanonicalPartSchema');
+
+  expect(
+    Value.Check(schema, {
+      schemaVersion: '1.0.0',
+      partId: '55555555-5555-4555-8555-555555555555',
+      category: 'PSU',
+      manufacturer: 'Example',
+      model: 'PSU',
+      status: 'ACTIVE',
+      spec: {
+        formFactor: 'ATX',
+        ratedPowerW: 850,
+        lengthMm: 160,
+        powerConnectors: [],
+      },
+    }),
+  ).toBe(true);
+});
