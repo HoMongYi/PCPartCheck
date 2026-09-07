@@ -1,7 +1,7 @@
 {
   "name": "@pcpartcheck/evidence",
   "version": "0.1.0",
-  "description": "Evidence provenance and unit normalization for PCPartCheck",
+  "description": "Evidence provenance and exact field evidence for PCPartCheck",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
