@@ -21,7 +21,9 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.13.3",
+    "better-sqlite3": "13.0.3",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",

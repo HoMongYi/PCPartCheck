@@ -11,6 +11,9 @@
         "./packages/rules-standard/src/index.ts"
       ],
       "@pcpartcheck/similarity": ["./packages/similarity/src/index.ts"],
+      "@pcpartcheck/storage-sqlite": [
+        "./packages/storage-sqlite/src/index.ts"
+      ],
       "@pcpartcheck/unit-normalization": [
         "./packages/unit-normalization/src/index.ts"
       ]
@@ -20,6 +23,7 @@
   "include": [
     "packages/**/src/**/*.ts",
     "packages/**/test/**/*.ts",
+    "tests/**/*.ts",
     "scripts/**/*.ts",
     "vitest.config.ts"
   ]

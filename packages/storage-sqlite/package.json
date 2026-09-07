@@ -1,0 +1,35 @@
+{
+  "name": "@pcpartcheck/storage-sqlite",
+  "version": "0.1.0",
+  "description": "SQLite persistence for PCPartCheck",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "drizzle"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@pcpartcheck/core": "workspace:*",
+    "@pcpartcheck/evidence": "workspace:*",
+    "@pcpartcheck/identity": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "drizzle-kit": "0.31.10"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

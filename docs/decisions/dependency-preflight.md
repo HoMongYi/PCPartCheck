@@ -28,3 +28,5 @@ TypeScript 7.0.2는 typescript-eslint 8.69.0의 peer 범위인 `<6.1.0`을 벗�
 CI Action의 공식 최신 안정 릴리스는 `actions/checkout@v7.0.1`, `actions/setup-node@v7.0.0`, `pnpm/setup@v2.1.0`, `changesets/action@v2.1.2`였다. CI 파일은 유지보수되는 major tag를 사용한다. pnpm 12에서는 Node 설치와 lockfile 검증을 함께 지원하는 `pnpm/setup@v2`를 선택했다.
 
 BuildCores OpenDB의 기준 commit은 `ce2e22b85a3b9a5ee10c28fd8a457b9b536eeff1`이며 commit 시각은 2026-09-06T12:24:21Z다. 실제 importer 구현 전에는 Schema와 라이선스를 다시 확인한다.
+
+Checkpoint 3을 시작하기 직전 npm registry를 다시 조회했으며 위 버전은 그대로 유지됐다. `better-sqlite3` 13.0.3의 Node.js 요구 범위는 `>=22`이고 Drizzle ORM 0.45.2의 driver peer 범위는 `better-sqlite3 >=7`이라 Node.js 24 환경과 맞는다. pnpm의 install-script 정책에는 고정 버전으로 설치한 `better-sqlite3`와 esbuild만 허용했다.
