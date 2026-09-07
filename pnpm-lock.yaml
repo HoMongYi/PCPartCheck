@@ -134,6 +134,12 @@ importers:
         specifier: 0.34.52
         version: 0.34.52
 
+  packages/evidence:
+    dependencies:
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@cacheable/memory@2.2.0':

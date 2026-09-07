@@ -2,6 +2,12 @@ import { Type, type Static } from '@sinclair/typebox';
 
 export const CANONICAL_SCHEMA_VERSION = '1.0.0' as const;
 
+export type JsonPrimitive = boolean | null | number | string;
+export type JsonValue =
+  | JsonPrimitive
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
 export const PositiveIntegerSchema = Type.Integer({ minimum: 1 });
 export const NonNegativeIntegerSchema = Type.Integer({ minimum: 0 });
 export const PositiveNumberSchema = Type.Number({ exclusiveMinimum: 0 });
