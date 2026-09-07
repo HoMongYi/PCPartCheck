@@ -5,6 +5,9 @@
     "paths": {
       "@pcpartcheck/core": ["./packages/core/src/index.ts"],
       "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
+      "@pcpartcheck/rules-standard": [
+        "./packages/rules-standard/src/index.ts"
+      ],
       "@pcpartcheck/unit-normalization": [
         "./packages/unit-normalization/src/index.ts"
       ]
