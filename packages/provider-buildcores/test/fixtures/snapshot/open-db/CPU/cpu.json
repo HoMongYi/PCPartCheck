@@ -1,0 +1,22 @@
+{
+  "opendb_id": "11111111-1111-4111-8111-111111111111",
+  "socket": "AM5",
+  "cores": { "total": 8, "threads": 16 },
+  "specifications": {
+    "tdp": 120,
+    "ppt": 162,
+    "memory": { "types": ["DDR5"] }
+  },
+  "metadata": {
+    "name": "Example Eight Core",
+    "manufacturer": "Example CPU",
+    "part_numbers": ["EX-CPU-8"]
+  },
+  "identifiers": {
+    "version": 1,
+    "identifiers": [
+      { "type": "mpn", "value": "EX-CPU-8", "region": "all" }
+    ],
+    "retailer_listings": []
+  }
+}

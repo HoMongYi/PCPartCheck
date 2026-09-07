@@ -7,6 +7,10 @@
       "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
       "@pcpartcheck/identity": ["./packages/identity/src/index.ts"],
       "@pcpartcheck/power": ["./packages/power/src/index.ts"],
+      "@pcpartcheck/provider-buildcores": [
+        "./packages/provider-buildcores/src/index.ts"
+      ],
+      "@pcpartcheck/provider-sdk": ["./packages/provider-sdk/src/index.ts"],
       "@pcpartcheck/rules-standard": [
         "./packages/rules-standard/src/index.ts"
       ],

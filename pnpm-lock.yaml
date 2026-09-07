@@ -158,6 +158,27 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/provider-buildcores:
+    dependencies:
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../core
+      '@pcpartcheck/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@pcpartcheck/provider-sdk':
+        specifier: workspace:*
+        version: link:../provider-sdk
+      '@pcpartcheck/unit-normalization':
+        specifier: workspace:*
+        version: link:../unit-normalization
+
+  packages/provider-sdk:
+    dependencies:
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/rules-standard:
     dependencies:
       '@pcpartcheck/core':
