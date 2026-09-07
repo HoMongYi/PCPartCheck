@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: ['**']
 
 permissions:
   contents: read
@@ -16,8 +16,10 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/setup@v2
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install dependencies
+        uses: pnpm/setup@v2
         with:
           runtime: node@24.13.1
           cache: true
