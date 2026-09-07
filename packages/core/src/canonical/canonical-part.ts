@@ -11,13 +11,20 @@ import {
   PsuSpecSchema,
   StorageSpecSchema,
 } from './part-spec.js';
-import { CANONICAL_SCHEMA_VERSION, PartStatusSchema } from './primitives.js';
+import {
+  CANONICAL_SCHEMA_VERSION,
+  PartIdSchema,
+  PartStatusSchema,
+} from './primitives.js';
 
-function canonicalPart(category: string, spec: TSchema) {
+function canonicalPart<
+  const TCategory extends string,
+  const TSpec extends TSchema,
+>(category: TCategory, spec: TSpec) {
   return Type.Object(
     {
       schemaVersion: Type.Literal(CANONICAL_SCHEMA_VERSION),
-      partId: Type.String({ minLength: 1 }),
+      partId: PartIdSchema,
       category: Type.Literal(category),
       manufacturer: Type.String({ minLength: 1 }),
       model: Type.String({ minLength: 1 }),

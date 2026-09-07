@@ -1,6 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { PositiveIntegerSchema } from './canonical/primitives.js';
+import {
+  PartIdSchema,
+  PositiveIntegerSchema,
+} from './canonical/primitives.js';
 
 export const BUILD_INTENT_SCHEMA_VERSION = '1.0.0' as const;
 
@@ -14,7 +17,7 @@ export type BuildUseCase = Static<typeof BuildUseCaseSchema>;
 
 export const BuildPartSelectionSchema = Type.Object(
   {
-    partId: Type.String({ minLength: 1 }),
+    partId: PartIdSchema,
     quantity: PositiveIntegerSchema,
   },
   { additionalProperties: false },
@@ -34,8 +37,8 @@ export const RequestedPartChangeSchema = Type.Object(
       Type.Literal('STORAGE'),
       Type.Literal('CASE_FAN'),
     ]),
-    replacedPartId: Type.Optional(Type.String({ minLength: 1 })),
-    candidatePartId: Type.Optional(Type.String({ minLength: 1 })),
+    replacedPartId: Type.Optional(PartIdSchema),
+    candidatePartId: Type.Optional(PartIdSchema),
   },
   { additionalProperties: false },
 );

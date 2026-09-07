@@ -1,6 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import type { JsonValue } from './canonical/primitives.js';
+import {
+  JsonValueSchema,
+  type JsonValue,
+} from './canonical/primitives.js';
 
 export const CapabilityModeSchema = Type.Union([
   Type.Literal('REQUIRED'),
@@ -13,7 +16,7 @@ export const CapabilityPolicySchema = Type.Object(
   {
     capabilityId: Type.String({ minLength: 1 }),
     mode: CapabilityModeSchema,
-    config: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    config: Type.Optional(Type.Record(Type.String(), JsonValueSchema)),
   },
   { additionalProperties: false },
 );
@@ -29,6 +32,15 @@ export interface PolicyProfile {
   readonly policyVersion: string;
   readonly capabilities: readonly CapabilityPolicy[];
 }
+
+export const PolicyProfileSchema = Type.Object(
+  {
+    profileId: Type.String({ minLength: 1 }),
+    policyVersion: Type.String({ minLength: 1 }),
+    capabilities: Type.Array(CapabilityPolicySchema),
+  },
+  { additionalProperties: false },
+);
 
 export interface CapabilityDefinition {
   readonly capabilityId: string;

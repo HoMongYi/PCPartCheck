@@ -22,6 +22,11 @@ export const JsonValueSchema = Type.Recursive((jsonValue) =>
 export const PositiveIntegerSchema = Type.Integer({ minimum: 1 });
 export const NonNegativeIntegerSchema = Type.Integer({ minimum: 0 });
 export const PositiveNumberSchema = Type.Number({ exclusiveMinimum: 0 });
+export const PartIdSchema = Type.String({
+  pattern:
+    '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+});
+export type PartId = Static<typeof PartIdSchema>;
 
 export const CanonicalUnitSchema = Type.Union([
   Type.Literal('mm'),

@@ -77,13 +77,17 @@ test('upgrade intent preserves existing and requested change concepts', () => {
     Value.Check(schema, {
       schemaVersion: '1.0.0',
       useCase: 'UPGRADE',
-      existingParts: [{ partId: 'old-gpu', quantity: 1 }],
-      preservedParts: [{ partId: 'old-psu', quantity: 1 }],
+      existingParts: [
+        { partId: '11111111-1111-4111-8111-111111111111', quantity: 1 },
+      ],
+      preservedParts: [
+        { partId: '22222222-2222-4222-8222-222222222222', quantity: 1 },
+      ],
       requestedChanges: [
         {
           category: 'GPU',
-          replacedPartId: 'old-gpu',
-          candidatePartId: 'new-gpu',
+          replacedPartId: '11111111-1111-4111-8111-111111111111',
+          candidatePartId: '33333333-3333-4333-8333-333333333333',
         },
       ],
     }),

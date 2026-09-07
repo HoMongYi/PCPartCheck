@@ -1,8 +1,9 @@
 import { Value } from '@sinclair/typebox/value';
 import type { TSchema } from '@sinclair/typebox';
-import { expect, test } from 'vitest';
+import { expect, expectTypeOf, test } from 'vitest';
 
 import * as core from '../src/index.js';
+import type { PartCategory } from '../src/index.js';
 
 function exportedSchema(name: string): TSchema {
   const candidate = (core as Readonly<Record<string, unknown>>)[name];
@@ -134,7 +135,22 @@ test('canonical parts carry the exact schema version and structured spec', () =>
   };
 
   expect(Value.Check(schema, cpu)).toBe(true);
+  expect(Value.Check(schema, { ...cpu, partId: 'cpu-1' })).toBe(false);
   expect(Value.Check(schema, { ...cpu, schemaVersion: '2.0.0' })).toBe(
     false,
   );
+});
+
+test('part category remains a closed public literal union', () => {
+  expectTypeOf<PartCategory>().toEqualTypeOf<
+    | 'CPU'
+    | 'CPU_COOLER'
+    | 'GPU'
+    | 'MOTHERBOARD'
+    | 'PC_CASE'
+    | 'PSU'
+    | 'MEMORY'
+    | 'STORAGE'
+    | 'CASE_FAN'
+  >();
 });

@@ -26,6 +26,13 @@ test('capability policy accepts one mode and rejects the legacy flags', () => {
       requirement: 'REQUIRED',
     }),
   ).toBe(false);
+  expect(
+    Value.Check(schema, {
+      capabilityId: 'socket',
+      mode: 'REQUIRED',
+      config: { invalid: () => 'not-json' },
+    }),
+  ).toBe(false);
 });
 
 test('unlisted capabilities resolve to disabled without scattered flags', () => {
