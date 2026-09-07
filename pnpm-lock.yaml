@@ -158,6 +158,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/similarity:
+    dependencies:
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../core
+      '@pcpartcheck/evidence':
+        specifier: workspace:*
+        version: link:../evidence
+
   packages/unit-normalization:
     dependencies:
       '@pcpartcheck/core':

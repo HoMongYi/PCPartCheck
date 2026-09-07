@@ -1,0 +1,28 @@
+{
+  "name": "@pcpartcheck/similarity",
+  "version": "0.1.0",
+  "description": "Deterministic similar field evidence ranking for PCPartCheck",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@pcpartcheck/core": "workspace:*",
+    "@pcpartcheck/evidence": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

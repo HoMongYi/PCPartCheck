@@ -10,6 +10,7 @@
       "@pcpartcheck/rules-standard": [
         "./packages/rules-standard/src/index.ts"
       ],
+      "@pcpartcheck/similarity": ["./packages/similarity/src/index.ts"],
       "@pcpartcheck/unit-normalization": [
         "./packages/unit-normalization/src/index.ts"
       ]
