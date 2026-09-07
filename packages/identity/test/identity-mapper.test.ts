@@ -85,6 +85,22 @@ describe('resolveCanonicalIdentity', () => {
     },
   );
 
+  test('rejects an identifier match when a critical specification conflicts', () => {
+    const result = resolver()({
+      incoming: {
+        ...incoming,
+        criticalSpecs: { memoryGb: 12, chipset: 'FAST-100' },
+      },
+      mappings: [],
+      canonicalIdentities: [canonical],
+      createPartId: () => newPartId,
+      mapperVersion: '1.0.0',
+      matchedAt: '2026-09-08T00:00:00.000Z',
+    });
+
+    expect(result).toMatchObject({ outcome: 'REJECTED' });
+  });
+
   test('matches normalized manufacturer/model only when critical specs agree', () => {
     const result = resolver()({
       incoming: { ...incoming, identifiers: {} },
@@ -141,9 +157,20 @@ describe('resolveCanonicalIdentity', () => {
       canonicalIdentities: [],
       createPartId,
       mapperVersion: '1.0.0',
+      matchedAt: '2026-09-08T00:00:00.000Z',
     });
 
-    expect(result).toMatchObject({ outcome: 'NEW', partId: newPartId });
+    expect(result).toMatchObject({
+      outcome: 'NEW',
+      partId: newPartId,
+      mapping: {
+        rawName: 'Example Tech Fast GPU 16GB',
+        confidence: 'HIGH',
+        status: 'CONFIRMED',
+        matchedAt: '2026-09-08T00:00:00.000Z',
+        mapperVersion: '1.0.0',
+      },
+    });
     expect(createPartId).toHaveBeenCalledOnce();
   });
 

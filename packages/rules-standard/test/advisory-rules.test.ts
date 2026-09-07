@@ -128,6 +128,32 @@ describe('fanHeaderCurrentRule', () => {
 
     expect(result.status).toBe('UNKNOWN');
   });
+
+  test('does not combine separate header capacities for one over-current fan', async () => {
+    const result = await exportedRule('fanHeaderCurrentRule').evaluate(
+      context(
+        [
+          fan(5, { maxCurrentA: 1.4 }),
+          board({
+            fanHeaders: [
+              {
+                type: 'SYSTEM_FAN',
+                connector: 'PWM_4_PIN',
+                count: 2,
+                maxCurrentA: 1,
+              },
+            ],
+          }),
+        ],
+        'fan-current',
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: 'CONDITIONAL',
+      conditions: [{ code: 'USE_POWERED_FAN_HUB' }],
+    });
+  });
 });
 
 describe('rgbHeaderRule', () => {

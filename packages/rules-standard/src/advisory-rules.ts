@@ -95,19 +95,24 @@ export const fanHeaderCurrentRule: EngineRule = {
       );
     }
 
-    const requiredCurrentA = fans.reduce(
-      (total, fan) => total + (fan.spec.maxCurrentA ?? 0),
-      0,
-    );
-    const availableCurrentA = headers.reduce(
-      (total, header) => total + header.count * (header.maxCurrentA ?? 0),
-      0,
-    );
+    const fanLoads = fans
+      .map((fan) => fan.spec.maxCurrentA ?? 0)
+      .sort((left, right) => right - left);
+    const headerCapacities = headers
+      .flatMap((header) =>
+        Array.from({ length: header.count }, () => header.maxCurrentA ?? 0),
+      )
+      .sort((left, right) => right - left);
+    const hasDirectAssignment =
+      fanLoads.length <= headerCapacities.length &&
+      fanLoads.every(
+        (fanCurrentA, index) => fanCurrentA <= (headerCapacities[index] ?? 0),
+      );
 
-    if (requiredCurrentA > availableCurrentA) {
+    if (!hasDirectAssignment) {
       return poweredHub(
-        'Case fan current exceeds motherboard header capacity',
-        `${requiredCurrentA} A exceeds ${availableCurrentA} A of available header capacity`,
+        'Case fan current cannot be assigned within individual header ratings',
+        'At least one fan lacks a dedicated header with sufficient current capacity',
       );
     }
 

@@ -15,6 +15,7 @@ export interface ExternalPartIdentity {
   readonly category: PartCategory;
   readonly manufacturer: string;
   readonly model: string;
+  readonly rawName?: string;
   readonly identifiers?: PartIdentifiers;
   readonly criticalSpecs?: Readonly<Record<string, JsonPrimitive>>;
 }
@@ -34,11 +35,21 @@ export type IdentityMatchMethod =
   | 'MANUFACTURER_MODEL_SPECS'
   | 'NEW_PART';
 
+export type IdentityConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+export type ExternalMappingStatus =
+  | 'CONFIRMED'
+  | 'REVIEW_REQUIRED'
+  | 'REJECTED';
+
 export interface ExternalMapping {
   readonly source: string;
   readonly externalId: string;
   readonly partId: PartId;
+  readonly rawName: string;
   readonly matchMethod: IdentityMatchMethod;
+  readonly confidence: IdentityConfidence;
+  readonly status: ExternalMappingStatus;
+  readonly matchedAt: string;
   readonly mapperVersion: string;
 }
 
@@ -62,6 +73,7 @@ export interface ResolveCanonicalIdentityInput {
   readonly mappings: readonly ExternalMapping[];
   readonly canonicalIdentities: readonly CanonicalIdentity[];
   readonly createPartId: () => PartId;
+  readonly matchedAt: string;
   readonly mapperVersion?: string;
 }
 
@@ -127,7 +139,13 @@ function mappingFor(
     source: input.incoming.source,
     externalId: input.incoming.externalId,
     partId,
+    rawName:
+      input.incoming.rawName ??
+      `${input.incoming.manufacturer} ${input.incoming.model}`,
     matchMethod,
+    confidence: 'HIGH',
+    status: 'CONFIRMED',
+    matchedAt: input.matchedAt,
     mapperVersion: input.mapperVersion ?? IDENTITY_MAPPER_VERSION,
   };
 }
@@ -137,12 +155,13 @@ function matched(
   partId: PartId,
   matchMethod: IdentityMatchMethod,
   reason: string,
+  existingMapping?: ExternalMapping,
 ): IdentityResolution {
   return {
     outcome: 'MATCHED',
     partId,
     matchMethod,
-    mapping: mappingFor(input, partId, matchMethod),
+    mapping: existingMapping ?? mappingFor(input, partId, matchMethod),
     candidatePartIds: [partId],
     reasons: [reason],
   };
@@ -162,6 +181,7 @@ export function resolveCanonicalIdentity(
       existingMapping.partId,
       'EXTERNAL_MAPPING',
       'Existing source mapping reused',
+      existingMapping,
     );
   }
 
@@ -177,6 +197,18 @@ export function resolveCanonicalIdentity(
     }),
   );
   const identifierPartIds = [...new Set(identifierMatches.map((candidate) => candidate.partId))];
+  const conflictingIdentifierMatches = identifierMatches.filter((candidate) =>
+    criticalSpecsConflict(input.incoming.criticalSpecs, candidate.criticalSpecs),
+  );
+  if (conflictingIdentifierMatches.length > 0) {
+    return {
+      outcome: 'REJECTED',
+      candidatePartIds: conflictingIdentifierMatches.map(
+        (candidate) => candidate.partId,
+      ),
+      reasons: ['Product identifier matched but a critical specification conflicts'],
+    };
+  }
   if (identifierPartIds.length === 1) {
     return matched(
       input,
