@@ -5,6 +5,7 @@
     "paths": {
       "@pcpartcheck/core": ["./packages/core/src/index.ts"],
       "@pcpartcheck/evidence": ["./packages/evidence/src/index.ts"],
+      "@pcpartcheck/power": ["./packages/power/src/index.ts"],
       "@pcpartcheck/rules-standard": [
         "./packages/rules-standard/src/index.ts"
       ],

@@ -10,6 +10,9 @@ export default defineConfig({
       '@pcpartcheck/evidence': fileURLToPath(
         new URL('./packages/evidence/src/index.ts', import.meta.url),
       ),
+      '@pcpartcheck/power': fileURLToPath(
+        new URL('./packages/power/src/index.ts', import.meta.url),
+      ),
       '@pcpartcheck/rules-standard': fileURLToPath(
         new URL('./packages/rules-standard/src/index.ts', import.meta.url),
       ),

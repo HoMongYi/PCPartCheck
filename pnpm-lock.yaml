@@ -140,6 +140,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/power:
+    dependencies:
+      '@pcpartcheck/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/rules-standard:
     dependencies:
       '@pcpartcheck/core':
