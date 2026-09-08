@@ -38,19 +38,27 @@ const canonical = {
   criticalSpecs: { memoryGb: 16, chipset: 'FAST-100' },
 } as const;
 
+function externalMapping(
+  status: 'CONFIRMED' | 'REVIEW_REQUIRED' | 'REJECTED',
+) {
+  return {
+    source: 'catalog-a',
+    externalId: 'gpu-100',
+    partId: existingPartId,
+    rawName: 'Example Tech Fast GPU 16GB',
+    matchMethod: 'EXTERNAL_MAPPING',
+    confidence: 'HIGH',
+    status,
+    matchedAt: '2026-09-08T00:00:00.000Z',
+    mapperVersion: '1.0.0',
+  } as const;
+}
+
 describe('resolveCanonicalIdentity', () => {
-  test('reuses an existing ExternalMapping before all other matching', () => {
+  test('reuses an existing confirmed ExternalMapping', () => {
     const result = resolver()({
       incoming: { ...incoming, manufacturer: 'Changed label' },
-      mappings: [
-        {
-          source: 'catalog-a',
-          externalId: 'gpu-100',
-          partId: existingPartId,
-          matchMethod: 'EXTERNAL_MAPPING',
-          mapperVersion: '1.0.0',
-        },
-      ],
+      mappings: [externalMapping('CONFIRMED')],
       canonicalIdentities: [],
       createPartId: () => newPartId,
       mapperVersion: '1.0.0',
@@ -61,6 +69,32 @@ describe('resolveCanonicalIdentity', () => {
       partId: existingPartId,
       matchMethod: 'EXTERNAL_MAPPING',
     });
+  });
+
+  test.each([
+    ['REVIEW_REQUIRED', 'REVIEW_REQUIRED'],
+    ['REJECTED', 'REJECTED'],
+  ] as const)('preserves an existing %s mapping instead of auto-matching it', (status, outcome) => {
+    const result = resolver()({
+      incoming,
+      mappings: [externalMapping(status)],
+      canonicalIdentities: [canonical],
+      createPartId: () => newPartId,
+    });
+
+    expect(result).toMatchObject({ outcome, partId: existingPartId });
+  });
+
+  test('does not reuse a confirmed mapping when incoming critical specs conflict', () => {
+    const result = resolver()({
+      incoming: { ...incoming, criticalSpecs: { memoryGb: 8, chipset: 'OTHER' } },
+      mappings: [externalMapping('CONFIRMED')],
+      canonicalIdentities: [canonical],
+      createPartId: () => newPartId,
+    });
+
+    expect(result).toMatchObject({ outcome: 'REJECTED' });
+    expect(result).not.toMatchObject({ outcome: 'MATCHED' });
   });
 
   test.each(['mpn', 'gtin'] as const)(
@@ -147,6 +181,26 @@ describe('resolveCanonicalIdentity', () => {
     });
 
     expect(result).toMatchObject({ outcome: 'REVIEW_REQUIRED' });
+  });
+
+  test('creates a new part when only manufacturer and category match', () => {
+    const createPartId = vi.fn(() => newPartId);
+    const result = resolver()({
+      incoming: {
+        ...incoming,
+        externalId: 'gpu-new',
+        identifiers: {},
+        model: 'Quiet Display Adapter 4GB',
+        criticalSpecs: { memoryGb: 4, chipset: 'QUIET-4' },
+      },
+      mappings: [],
+      canonicalIdentities: [{ ...canonical, identifiers: {} }],
+      createPartId,
+      matchedAt: '2026-09-08T00:00:00.000Z',
+    });
+
+    expect(result).toMatchObject({ outcome: 'NEW', partId: newPartId });
+    expect(createPartId).toHaveBeenCalledOnce();
   });
 
   test('creates an id only for a genuinely new part', () => {

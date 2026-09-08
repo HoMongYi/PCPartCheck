@@ -1,6 +1,6 @@
 import type { JsonPrimitive, PartCategory, PartId } from '@pcpartcheck/core';
 
-export const IDENTITY_MAPPER_VERSION = '1.0.0' as const;
+export const IDENTITY_MAPPER_VERSION = '1.1.0' as const;
 
 export interface PartIdentifiers {
   readonly mpn?: string;
@@ -16,6 +16,7 @@ export interface ExternalPartIdentity {
   readonly manufacturer: string;
   readonly model: string;
   readonly rawName?: string;
+  readonly aliases?: readonly string[];
   readonly identifiers?: PartIdentifiers;
   readonly criticalSpecs?: Readonly<Record<string, JsonPrimitive>>;
 }
@@ -25,6 +26,7 @@ export interface CanonicalIdentity {
   readonly category: PartCategory;
   readonly manufacturer: string;
   readonly model: string;
+  readonly aliases?: readonly string[];
   readonly identifiers?: PartIdentifiers;
   readonly criticalSpecs?: Readonly<Record<string, JsonPrimitive>>;
 }
@@ -96,6 +98,48 @@ function sameName(
     incoming.category === candidate.category &&
     compact(incoming.manufacturer) === compact(candidate.manufacturer) &&
     compact(incoming.model) === compact(candidate.model)
+  );
+}
+
+function tokens(value: string): ReadonlySet<string> {
+  return new Set(
+    value
+      .normalize('NFKC')
+      .toLocaleLowerCase('en-US')
+      .match(/[\p{L}\p{N}]+/gu) ?? [],
+  );
+}
+
+function plausibleModelSimilarity(
+  incoming: ExternalPartIdentity,
+  candidate: CanonicalIdentity,
+): boolean {
+  const incomingNames = [incoming.model, ...(incoming.aliases ?? [])];
+  const candidateNames = [candidate.model, ...(candidate.aliases ?? [])];
+
+  return incomingNames.some((incomingName) =>
+    candidateNames.some((candidateName) => {
+      const incomingCompact = compact(incomingName);
+      const candidateCompact = compact(candidateName);
+      if (incomingCompact === candidateCompact) return true;
+      const shorterLength = Math.min(incomingCompact.length, candidateCompact.length);
+      if (
+        shorterLength >= 5 &&
+        (incomingCompact.includes(candidateCompact) ||
+          candidateCompact.includes(incomingCompact))
+      ) {
+        return true;
+      }
+
+      const incomingTokens = tokens(incomingName);
+      const candidateTokens = tokens(candidateName);
+      const smallerSize = Math.min(incomingTokens.size, candidateTokens.size);
+      if (smallerSize === 0) return false;
+      const overlap = [...incomingTokens].filter((token) =>
+        candidateTokens.has(token),
+      ).length;
+      return overlap / smallerSize >= 0.6;
+    }),
   );
 }
 
@@ -176,6 +220,52 @@ export function resolveCanonicalIdentity(
       mapping.externalId === input.incoming.externalId,
   );
   if (existingMapping) {
+    if (existingMapping.status !== 'CONFIRMED') {
+      return {
+        outcome: existingMapping.status,
+        partId: existingMapping.partId,
+        matchMethod: 'EXTERNAL_MAPPING',
+        mapping: existingMapping,
+        candidatePartIds: [existingMapping.partId],
+        reasons: [`Existing source mapping remains ${existingMapping.status}`],
+      };
+    }
+
+    const mappedIdentity = input.canonicalIdentities.find(
+      (candidate) => candidate.partId === existingMapping.partId,
+    );
+    if (
+      mappedIdentity &&
+      (mappedIdentity.category !== input.incoming.category ||
+        criticalSpecsConflict(
+          input.incoming.criticalSpecs,
+          mappedIdentity.criticalSpecs,
+        ))
+    ) {
+      return {
+        outcome: 'REJECTED',
+        partId: existingMapping.partId,
+        matchMethod: 'EXTERNAL_MAPPING',
+        mapping: existingMapping,
+        candidatePartIds: [existingMapping.partId],
+        reasons: ['Confirmed source mapping conflicts with current critical identity data'],
+      };
+    }
+    if (
+      mappedIdentity &&
+      (compact(mappedIdentity.manufacturer) !==
+        compact(input.incoming.manufacturer) ||
+        !plausibleModelSimilarity(input.incoming, mappedIdentity))
+    ) {
+      return {
+        outcome: 'REVIEW_REQUIRED',
+        partId: existingMapping.partId,
+        matchMethod: 'EXTERNAL_MAPPING',
+        mapping: existingMapping,
+        candidatePartIds: [existingMapping.partId],
+        reasons: ['Confirmed source mapping no longer resembles the incoming identity'],
+      };
+    }
     return matched(
       input,
       existingMapping.partId,
@@ -258,16 +348,17 @@ export function resolveCanonicalIdentity(
     };
   }
 
-  const similarManufacturerCandidates = input.canonicalIdentities.filter(
+  const plausibleCandidates = input.canonicalIdentities.filter(
     (candidate) =>
       candidate.category === input.incoming.category &&
-      compact(candidate.manufacturer) === compact(input.incoming.manufacturer),
+      compact(candidate.manufacturer) === compact(input.incoming.manufacturer) &&
+      plausibleModelSimilarity(input.incoming, candidate),
   );
-  if (similarManufacturerCandidates.length > 0) {
+  if (plausibleCandidates.length > 0) {
     return {
       outcome: 'REVIEW_REQUIRED',
-      candidatePartIds: similarManufacturerCandidates.map((candidate) => candidate.partId),
-      reasons: ['Manufacturer and category match, but identity proof is insufficient'],
+      candidatePartIds: plausibleCandidates.map((candidate) => candidate.partId),
+      reasons: ['A similar product name exists, but identity proof is insufficient'],
     };
   }
 
