@@ -13,12 +13,16 @@ import {
   type PolicyProfile,
 } from '@pcpartcheck/core';
 import {
+  DEMO_EXACT_FIELD_EVIDENCE_RECORD,
   DEMO_FIELD_EVIDENCE_RECORDS,
   DEMO_SCENARIOS,
   DEMO_SIMILARITY_QUERY,
 } from '@pcpartcheck/demo-data';
-import type { FieldEvidenceRecord } from '@pcpartcheck/evidence';
-import { powerRules } from '@pcpartcheck/power';
+import {
+  applyExactFieldEvidence,
+  type FieldEvidenceRecord,
+} from '@pcpartcheck/evidence';
+import { calculatePowerBudget, powerRules } from '@pcpartcheck/power';
 import {
   advisoryRules,
   clearanceRules,
@@ -93,6 +97,12 @@ async function getDemoDashboard(): Promise<DemoDashboardResponse> {
         versions,
       });
       const { resultSnapshot } = await engine.check(scenario.input);
+      const budget = scenario.ruleIds.includes('psu-capacity')
+        ? calculatePowerBudget(scenario.input.build)
+        : undefined;
+      const psu = scenario.input.build.parts.find(
+        (part) => part.category === 'PSU',
+      );
       return {
         id: scenario.id,
         title: scenario.title,
@@ -100,13 +110,63 @@ async function getDemoDashboard(): Promise<DemoDashboardResponse> {
         status: resultSnapshot.status,
         decision: resultSnapshot.decision,
         blockingRuleIds: [...resultSnapshot.issues.blockingRuleIds],
+        reviewRuleIds: [...resultSnapshot.issues.reviewRuleIds],
         advisoryRuleIds: [...resultSnapshot.issues.advisoryRuleIds],
+        coverage: resultSnapshot.coverage,
+        ruleResults: resultSnapshot.ruleResults.map((result) => {
+          const { conditions, ...withoutConditions } = result;
+          return {
+            ...withoutConditions,
+            reasons: [...result.reasons],
+            evidenceIds: [...result.evidenceIds],
+            ...(conditions
+              ? { conditions: conditions.map((condition) => ({ ...condition })) }
+              : {}),
+          };
+        }),
+        capabilities: resultSnapshot.ruleResults.map((result) => ({
+          capabilityId: result.capabilityId,
+          mode: result.policyMode,
+          status: result.status,
+        })),
+        ...(budget?.status === 'CALCULATED' && psu?.category === 'PSU'
+          ? {
+              powerBudget: {
+                estimatedPeakPowerW: budget.estimatedPeakPowerW,
+                minimumPsuW: budget.minimumPsuW,
+                calculatedRecommendedPsuW: budget.calculatedRecommendedPsuW,
+                recommendedPsuW: budget.recommendedPsuW,
+                ratedPsuW: psu.spec.ratedPowerW,
+              },
+            }
+          : {}),
       };
     }),
   );
 
+  const exactResult = applyExactFieldEvidence(
+    {
+      status: 'UNKNOWN',
+      summary: 'Canonical clearance data is incomplete',
+      reasons: ['Field evidence has not been applied'],
+      evidenceIds: [],
+    },
+    DEMO_FIELD_EVIDENCE_RECORDS,
+    DEMO_SIMILARITY_QUERY,
+  );
+
   return {
     scenarios,
+    exactEvidence: {
+      evidenceId: DEMO_EXACT_FIELD_EVIDENCE_RECORD.evidenceId,
+      issueType: DEMO_EXACT_FIELD_EVIDENCE_RECORD.issueType,
+      fieldEvidenceStatus: DEMO_EXACT_FIELD_EVIDENCE_RECORD.status,
+      visibility: DEMO_EXACT_FIELD_EVIDENCE_RECORD.visibility,
+      redaction: DEMO_EXACT_FIELD_EVIDENCE_RECORD.redaction,
+      outcome: DEMO_EXACT_FIELD_EVIDENCE_RECORD.outcome,
+      match: 'EXACT',
+      resultStatus: exactResult.status,
+    },
     similarEvidence: rankSimilarFieldEvidence({
       query: DEMO_SIMILARITY_QUERY,
       records: DEMO_FIELD_EVIDENCE_RECORDS,

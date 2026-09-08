@@ -65,7 +65,22 @@ function similarFailure(
   };
 }
 
+export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecord = {
+  schemaVersion: '2.0.0',
+  evidenceId: 'demo-field-clearance-exact',
+  status: 'APPROVED',
+  visibility: 'PUBLIC',
+  redaction: 'NONE',
+  outcome: 'ASSEMBLY_FAILURE',
+  issueType: 'PHYSICAL_CLEARANCE',
+  parts: DEMO_SIMILARITY_QUERY.parts,
+  installationContext: queryContext,
+  measurements: DEMO_SIMILARITY_QUERY.measurements,
+  reportedAt: '2026-08-05T00:00:00.000Z',
+};
+
 export const DEMO_FIELD_EVIDENCE_RECORDS: readonly FieldEvidenceRecord[] = [
+  DEMO_EXACT_FIELD_EVIDENCE_RECORD,
   similarFailure(
     'demo-field-clearance-1',
     '20000000-0000-4000-8000-000000000001',

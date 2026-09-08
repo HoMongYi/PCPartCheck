@@ -10,13 +10,22 @@ test('shows real engine scenarios and keeps similar failures informational', asy
     readonly scenarios: readonly unknown[];
     readonly similarEvidence: readonly unknown[];
   };
-  expect(dashboard.scenarios).toHaveLength(6);
+  expect(dashboard.scenarios).toHaveLength(8);
   expect(dashboard.similarEvidence).toHaveLength(3);
 
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'PCPartCheck' })).toBeVisible();
-  await expect(page.getByTestId('scenario-card')).toHaveCount(6);
+  await expect(page.getByTestId('scenario-card')).toHaveCount(8);
+  await expect(page.getByText('Status는 기술 판정')).toBeVisible();
+  await expect(page.getByText('Power Budget 기준값')).toBeVisible();
+  await expect(page.getByTestId('exact-evidence-card')).toBeVisible();
+  await expect(
+    page
+      .getByTestId('scenario-card')
+      .filter({ hasText: 'disabled-capability' })
+      .getByText('STATUS / 확인 안 함'),
+  ).toBeVisible();
   await expect(
     page.getByRole('heading', { name: '과거 유사한 구성의 조립 실패 사례 3건' }),
   ).toBeVisible();

@@ -108,9 +108,27 @@ async function createServer(
           status: 'PASS',
           decision: 'ALLOW',
           blockingRuleIds: [],
+          reviewRuleIds: [],
           advisoryRuleIds: [],
+          coverage: {
+            required: { total: 0, evaluated: 0, unknown: 0, notChecked: 0 },
+            advisory: { total: 0, evaluated: 0, unknown: 0, notChecked: 0 },
+            disabled: { total: 0, notChecked: 0 },
+          },
+          ruleResults: [],
+          capabilities: [],
         },
       ],
+      exactEvidence: {
+        evidenceId: 'exact-1',
+        issueType: 'PHYSICAL_CLEARANCE',
+        fieldEvidenceStatus: 'APPROVED',
+        visibility: 'PUBLIC',
+        redaction: 'NONE',
+        outcome: 'ASSEMBLY_FAILURE',
+        match: 'EXACT',
+        resultStatus: 'INCOMPATIBLE',
+      },
       similarEvidence: [
         {
           evidenceId: 'similar-1',

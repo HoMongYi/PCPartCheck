@@ -5,8 +5,8 @@ import { CompatibilityDashboard } from './compatibility-dashboard';
 export const dynamic = 'force-dynamic';
 
 async function loadDashboard(): Promise<DemoDashboardResponse | null> {
-  const endpoint =
-    process.env.PCPARTCHECK_API_URL ?? 'http://127.0.0.1:3001/v1/demo';
+  const endpoint = process.env.PCPARTCHECK_API_URL;
+  if (!endpoint) return null;
   try {
     const response = await fetch(endpoint, { cache: 'no-store' });
     if (!response.ok) return null;
@@ -18,6 +18,7 @@ async function loadDashboard(): Promise<DemoDashboardResponse | null> {
 
 export default async function Home() {
   const dashboard = await loadDashboard();
+  const apiDocsUrl = process.env.PCPARTCHECK_PUBLIC_API_URL ?? '/docs/';
 
   if (!dashboard) {
     return (
@@ -29,5 +30,7 @@ export default async function Home() {
     );
   }
 
-  return <CompatibilityDashboard dashboard={dashboard} />;
+  return (
+    <CompatibilityDashboard apiDocsUrl={apiDocsUrl} dashboard={dashboard} />
+  );
 }

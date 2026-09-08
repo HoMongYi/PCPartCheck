@@ -30,6 +30,7 @@ import type {
 import { Type, type Static } from '@sinclair/typebox';
 
 export { FieldEvidenceRecordSchema } from '@pcpartcheck/evidence';
+export type { FieldEvidenceRecord } from '@pcpartcheck/evidence';
 
 export const HealthResponseSchema = Type.Object(
   {
@@ -400,7 +401,32 @@ export const DemoScenarioResultSchema = Type.Object(
     status: CompatibilityStatusSchema,
     decision: CompatibilityDecisionSchema,
     blockingRuleIds: Type.Array(Type.String()),
+    reviewRuleIds: Type.Array(Type.String()),
     advisoryRuleIds: Type.Array(Type.String()),
+    coverage: CompatibilityCoverageSchema,
+    ruleResults: Type.Array(RuleResultSchema),
+    capabilities: Type.Array(
+      Type.Object(
+        {
+          capabilityId: Type.String({ minLength: 1 }),
+          mode: CapabilityModeSchema,
+          status: CompatibilityStatusSchema,
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    powerBudget: Type.Optional(
+      Type.Object(
+        {
+          estimatedPeakPowerW: Type.Number({ minimum: 0 }),
+          minimumPsuW: Type.Number({ minimum: 0 }),
+          calculatedRecommendedPsuW: Type.Number({ minimum: 0 }),
+          recommendedPsuW: Type.Number({ minimum: 0 }),
+          ratedPsuW: Type.Number({ minimum: 0 }),
+        },
+        { additionalProperties: false },
+      ),
+    ),
   },
   { additionalProperties: false },
 );
@@ -409,6 +435,26 @@ export type DemoScenarioResult = Static<typeof DemoScenarioResultSchema>;
 export const DemoDashboardResponseSchema = Type.Object(
   {
     scenarios: Type.Array(DemoScenarioResultSchema),
+    exactEvidence: Type.Object(
+      {
+        evidenceId: Type.String({ minLength: 1 }),
+        issueType: FieldEvidenceIssueTypeSchema,
+        fieldEvidenceStatus: Type.Union([
+          Type.Literal('DRAFT'),
+          Type.Literal('APPROVED'),
+          Type.Literal('REJECTED'),
+        ]),
+        visibility: FieldEvidenceVisibilitySchema,
+        redaction: FieldEvidenceRedactionSchema,
+        outcome: Type.Union([
+          Type.Literal('ASSEMBLY_SUCCESS'),
+          Type.Literal('ASSEMBLY_FAILURE'),
+        ]),
+        match: Type.Literal('EXACT'),
+        resultStatus: CompatibilityStatusSchema,
+      },
+      { additionalProperties: false },
+    ),
     similarEvidence: SimilarEvidenceResponseSchema,
   },
   { additionalProperties: false },

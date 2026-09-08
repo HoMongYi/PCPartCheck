@@ -170,6 +170,9 @@ importers:
       '@pcpartcheck/demo-data':
         specifier: workspace:*
         version: link:../../packages/demo-data
+      '@pcpartcheck/evidence':
+        specifier: workspace:*
+        version: link:../../packages/evidence
       '@pcpartcheck/http-server':
         specifier: workspace:*
         version: link:../../packages/http-server

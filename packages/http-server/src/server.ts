@@ -24,6 +24,7 @@ import {
   type AuthorizationProvider,
   type CompatibilityCheckBatchRequest,
   type CompatibilityCheckRequest,
+  type FieldEvidenceRecord,
   type FieldEvidencePatch,
   type IdParams,
   type PartsQuery,
@@ -32,7 +33,6 @@ import {
   type SimilarEvidenceLookup,
   type SimilarEvidenceQueryString,
 } from '@pcpartcheck/api-contracts';
-import type { FieldEvidenceRecord } from '@pcpartcheck/evidence';
 import { Value } from '@sinclair/typebox/value';
 import Fastify, {
   type FastifyInstance,

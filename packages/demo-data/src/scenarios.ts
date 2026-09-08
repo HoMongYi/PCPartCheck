@@ -162,7 +162,9 @@ const argbFan: CanonicalPart = {
 
 function input(
   parts: readonly CanonicalPart[],
-  capabilityModes: Readonly<Record<string, 'REQUIRED' | 'ADVISORY'>>,
+  capabilityModes: Readonly<
+    Record<string, 'REQUIRED' | 'ADVISORY' | 'DISABLED'>
+  >,
   installationContext: InstallationContext = baseInstallationContext,
 ): CompatibilityCheckInput {
   return {
@@ -284,5 +286,37 @@ export const DEMO_SCENARIOS: readonly DemoScenario[] = [
       { 'gpu-clearance': 'REQUIRED' },
     ),
     expectedResult: { status: 'UNKNOWN', decision: 'REVIEW' },
+  },
+  {
+    id: 'power-budget-warning',
+    title: '최소 출력은 넘지만 권장 출력은 못 미치는 구성',
+    summary: '추정 피크, 최소 출력, 계산 권장값과 제조사 권장값을 나눠 봅니다.',
+    ruleIds: ['psu-capacity'],
+    input: input(
+      [
+        cpu,
+        motherboard,
+        memory,
+        gpu,
+        {
+          ...psu,
+          model: 'Demo PSU 600W',
+          spec: { ...psu.spec, ratedPowerW: 600 },
+        },
+      ],
+      { 'power-budget': 'REQUIRED' },
+    ),
+    expectedResult: { status: 'WARNING', decision: 'ALLOW_WITH_WARNING' },
+  },
+  {
+    id: 'disabled-capability',
+    title: '정책에서 검사를 끈 항목',
+    summary: '비활성화한 Capability는 통과로 세지 않고 확인 안 함으로 남깁니다.',
+    ruleIds: ['cpu-socket'],
+    input: input(
+      [cpu, motherboard],
+      { socket: 'DISABLED' },
+    ),
+    expectedResult: { status: 'NOT_CHECKED', decision: 'NO_DECISION' },
   },
 ];
