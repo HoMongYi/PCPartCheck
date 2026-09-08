@@ -2,100 +2,85 @@
 
 ## 현재 상태
 
-`feat/checkpoint-1-foundation` 브랜치에서 Checkpoint 3.5의 Correctness & Public Contract Hardening을 마쳤다. 구현 커밋은 원격 feature branch에 push했고 merge하지 않았다. Checkpoint 4는 시작하지 않은 채 사용자 검토를 기다린다.
+`feat/checkpoint-1-foundation` 브랜치에서 Checkpoint 3.6 — Final Domain Integrity Hardening을 마쳤다. 구현 HEAD는 `90e22f3`이며 원격 feature branch에 push했다. merge하지 않았고 Checkpoint 4도 시작하지 않았다.
 
-Canonical Schema는 PCIe 슬롯의 physical/electrical lane 분리, Consumer 전원 요구 구조, `PCIE_CARD` 복원을 반영해 `2.0.0`이다. 엔진과 패키지 버전은 `0.1.0`을 유지한다. 이전 Canonical Schema Snapshot은 replay할 때 `ReplayVersionMismatchError`가 발생한다.
+공개 Schema 버전은 Canonical `3.0.0`, Installation Context `2.0.0`, Field Evidence `3.0.0`, Result Snapshot `2.0.0`이다. 엔진과 패키지 버전은 계속 `0.1.0`이다. Snapshot에는 Installation Context 버전도 따로 남으며, Canonical 또는 Installation Context 버전이 다르면 Replay를 거부한다.
 
-## 이번에 정리한 Contract
+## 고정한 Domain Contract
 
-- External Mapping은 `CONFIRMED`만 자동 재사용한다. `REVIEW_REQUIRED`와 `REJECTED`는 그대로 유지하며, 확정 Mapping이라도 incoming identity의 category나 critical field가 심각하게 충돌하면 자동 재사용하지 않는다.
-- PCIe 슬롯은 `physicalLanes`, `electricalLanes`, `generation`, `positionIndex`를 따로 가진다. 물리 장착 가능 여부와 대역폭 경고도 서로 다른 Rule이 맡는다.
-- GPU와 `PCIE_CARD`의 최대 link width는 필수 electrical lane 수가 아니다. 낮은 electrical lane이나 세대는 호환 불가가 아니라 Advisory 경고로 처리한다.
-- Consumer 전원 요구는 `REQUIRED / OPTIONAL / CONDITIONAL`로 구분한다. 고전력 커넥터 Adapter는 입력 커넥터 수가 기술 자료에 명시된 경우에만 판정한다.
-- LLM은 실제 Rule에 연결된 보충 설명만 반환할 수 있다. 전체 Status, Decision, 판정 제목, blocking/review/advisory 구분은 결정론적 계층이 계속 소유한다.
-- Field Evidence는 `visibility: PUBLIC / STAFF_ONLY / ADMIN_ONLY`와 `redaction: NONE / ANONYMIZED`를 별도 필드로 가진다. 새 기록은 반드시 `DRAFT`로 시작하며 승인에는 별도 권한이 필요하다.
-- Similar Failure는 계속 참고 Evidence만 만든다. Compatibility Status나 Decision을 변경하지 않는다.
+- M.2 장치 Key는 `B / M / B_M`, 슬롯 Key는 `B / M / B_M / E`로 구분한다. B+M 장치는 B 또는 M 슬롯에 장착할 수 있지만, E 슬롯은 일반 SSD 호환 슬롯으로 보지 않는다. 장치 Key를 모르면 `UNKNOWN`이다.
+- M.2 슬롯의 `sharedSataPortIds`가 없으면 공유 정보를 모르는 상태다. `[]`일 때만 공유 포트가 없다고 확인된 것으로 본다.
+- Installation Context의 배치·케이블·두께 필드는 생략할 수 있다. `undefined`는 미확인, `0 / false / []`는 확인된 값이다. 필요한 정보가 없으면 Rule은 `PASS` 대신 `UNKNOWN`을 반환한다.
+- PSU 공급 커넥터와 부품 전원 요구도 같은 원칙을 쓴다. 필드 생략은 미확인이고 빈 배열은 없음이 확인된 상태다.
+- Case Fan은 지름과 커넥터를 확인할 수 있으면 Canonical Part로 만든다. 두께가 없다는 이유로 전체 레코드를 버리지 않으며, 두께가 필요한 판정만 `UNKNOWN`으로 남긴다.
+- Similar Failure는 참고 Evidence일 뿐 Compatibility Status나 Decision을 바꾸지 않는다.
 
-## BuildCores 범위
+## Field Evidence 3.0
 
-2026-09-08에 공식 저장소의 최신 main `547b32703b370142f17b09c3047c80dc88ba5260`과 Schema tree `cc15acdcf8cec85d36b267fd6c201eff754cf624`를 다시 확인했다.
+Field Evidence는 `DRAFT`일 때만 WRITE 권한으로 수정할 수 있다. `DRAFT → APPROVED`, `DRAFT → REJECTED`는 별도의 `FIELD_EVIDENCE_MODERATE` 권한으로만 처리한다. APPROVED와 REJECTED 기록은 수정, 재승인, 직접 승격할 수 없으며 HTTP API는 충돌을 409로 반환한다. 수정본이 필요하면 새 DRAFT를 만들고 `supersedesEvidenceId`로 이전 기록을 연결한다.
 
-- 지원: CPU, Motherboard, RAM, GPU, PCCase, PSU, Storage
-- 조건부 지원: CPUCooler. 수랭 제품은 radiator size가 있어 AIO로 확정할 수 있을 때만 import한다.
-- Skip: CaseFan. Canonical 필수 값인 `thicknessMm`가 원본 Schema에 없다.
+모든 기록에는 `createdByPrincipalId`, `createdAt`, `updatedAt`이 들어간다. 승인·반려가 끝난 기록에는 moderator의 opaque principal ID와 처리 시각도 남는다. Outcome은 `ASSEMBLY_SUCCESS / ASSEMBLY_FAILURE / CONDITIONAL_SUCCESS`이고, 조건부 성공에는 조건이 적어도 한 개 필요하다.
 
-메인보드 PCIe의 physical/electrical 의미, 추가 EPS의 필수 여부, Fan header connector/current처럼 원본만으로 확정할 수 없는 값은 비워 둔다. GPU TDP를 peak power로 바꾸거나 interface의 x값을 physical connector로 추정하지 않는다. RAM `speed`만 BuildCores Adapter 안에서 `SOURCE_SEMANTIC_ALIAS`로 `dataRateMtps`에 옮기며 원본 field/unit, mapping rule, mapper version을 Audit에 남긴다.
+첨부는 `AttachmentReference`와 `AttachmentStorageProvider`로 분리했다. Evidence에는 media type, checksum, 크기, opaque storage key만 저장한다. 공개 Reference API는 합성 PNG 한 장을 메모리 저장소에서 제공하며, 첨부 조회도 Evidence visibility와 같은 권한 경계를 거친다.
 
-자세한 표는 `docs/providers/buildcores.md`에 있다.
+## Provider와 LLM 확장점
+
+BuildCores Adapter는 CPU, Motherboard, RAM, GPU, PCCase, PSU, Storage를 지원하고 CPUCooler는 안전하게 유형을 확정할 수 있을 때만 가져온다. CaseFan은 부분 Canonical Part로 가져온다. RAM `speed`는 BuildCores 내부의 `SOURCE_SEMANTIC_ALIAS`로만 `dataRateMtps`에 옮기며 Unit Normalizer에는 MHz→MT/s 규칙이 없다.
+
+Provider SDK에는 `ManufacturerSpecificationProvider`, `CpuSupportProvider`, `BiosReleaseProvider`, `MemoryQvlProvider` 계약과 runtime schema가 있다. 실제 Provider나 Scraper는 구현하지 않았다. Reference API에서 네 capability는 `providerAvailable: false`, `defaultMode: DISABLED`다.
+
+선택형 LLM 계약에는 Structured Intent Parser와 Evidence Note Summarizer가 추가됐다. Parser는 제공된 Canonical Part ID만 사용할 수 있다. Summarizer는 원문을 보존하며 status, decision, verdict, outcome을 만들 수 없다. 기존 Result Explainer와 Identity Mapping Assistant도 결정론적 결과를 바꿀 수 없다.
 
 ## 공개 API
 
 - `GET /health`
 - `POST /v1/compatibility/check`
 - `POST /v1/compatibility/check-batch`
-- `GET /v1/parts`
+- `GET /v1/parts` — `limit` 기본 50, 최대 100, `offset` 지원
 - `GET /v1/parts/:id`
 - `GET /v1/evidence/:id`
-- `GET /v1/field-evidence/similar`
+- `POST /v1/field-evidence/similar`
 - `GET /v1/capabilities`
 - `GET /v1/profiles`
 - `POST /v1/field-evidence`
 - `PATCH /v1/field-evidence/:id`
 - `POST /v1/field-evidence/:id/approve`
+- `POST /v1/field-evidence/:id/reject`
+- `GET /v1/field-evidence/:id/attachments/:attachmentId`
 - `GET /v1/demo`
 - `GET /openapi.json`
 - `GET /docs/`
 
-공개 전 API 이름을 정리해 `/v1/checks`와 `/v1/evidence/similar`는 남기지 않았다. Field Evidence 읽기·쓰기·승인 권한은 `AuthorizationProvider`, 요청 제한은 `RateLimitProvider`가 맡는다. 메모리 기반 reference 구현은 401/403, 429와 `Retry-After`까지 통합 테스트로 확인했다. Core는 인증과 Rate Limit 구현에 의존하지 않는다.
+`reference-default`는 소켓, 메모리 세대·용량, 폼팩터, 공간, 냉각, Storage, PCIe 물리 슬롯, Power Budget, PSU 커넥터를 REQUIRED로 둔다. PCIe 대역폭, Fan/RGB Header, Memory Rate, 4-DIMM Rate는 ADVISORY다. 아직 Provider가 없는 제조사 사양·CPU 지원·BIOS·QVL은 DISABLED다.
 
-Result Snapshot의 versions, providerVersions, inputSnapshot, Status, Decision, coverage, issue groups, rule results는 구체적인 OpenAPI runtime schema로 노출한다. `Type.Any()`는 재귀 JsonValue를 여러 번 인라인할 때 생기는 TypeBox `$ref` 충돌 때문에 API 경계의 `customFacts`, capability `config`, `evidenceSnapshot`, Raw Evidence `rawValue`에만 공통으로 사용한다. Compatibility 입력은 엔진 진입 시 Core의 `JsonValueSchema`로 다시 검증한다.
+## 이번 Checkpoint 커밋
 
-## Demo
+- `47b6a12 fix(domain): preserve unknown hardware facts`
+- `2ba3c0a feat(evidence): enforce immutable moderation records`
+- `9ac2223 feat(provider-sdk): define manufacturer support contracts`
+- `0427d50 feat(llm): add optional structured input tools`
+- `9b98f38 feat(api): bound catalog and evidence searches`
+- `90e22f3 test(domain): tighten release boundary coverage`
 
-Dashboard는 8개 합성 시나리오를 실제 엔진으로 계산한다.
-
-- `PASS / ALLOW`
-- Socket, radiator/GPU, PSU connector의 `INCOMPATIBLE / BLOCK`
-- Advisory RGB 실패의 `INCOMPATIBLE / ALLOW_WITH_WARNING`
-- 누락된 clearance의 `UNKNOWN / REVIEW`
-- 최소 출력과 최종 권장 출력 사이 PSU의 `WARNING / ALLOW_WITH_WARNING`
-- disabled Capability의 `NOT_CHECKED / NO_DECISION`
-
-각 카드의 상세 영역에서 Rule 결과, Required/Advisory/Disabled coverage, Capability mode를 볼 수 있다. Power Budget 사례는 estimated peak, minimum, calculated recommendation, final recommendation, 선택한 PSU 정격을 함께 표시한다. 승인된 Exact Failure와 Similar Top 3는 별도 영역으로 나눴고, Similar 사례는 현재 구성을 자동 차단하지 않는다고 명시했다.
-
-Demo의 API 문서 링크는 `PCPARTCHECK_PUBLIC_API_URL`로 바꿀 수 있고 기본값은 상대 경로 `/docs/`다. 서버 측 Dashboard 조회 주소는 `PCPARTCHECK_API_URL`을 사용하며 로컬 주소를 소스에 고정하지 않는다.
-
-## Commit 경계
-
-- `366ac29 fix(identity): respect mapping review status`
-- `6c33a67 fix(core): separate PCIe and power semantics`
-- `93167f3 fix(llm): scope explanations to rule results`
-- `238959d feat(provider): complete verified BuildCores coverage`
-- `c88c61e feat(evidence): add access and redaction contract`
-- `a691b4a feat(api): restore generic public contract`
-- `87e5833 feat(demo): expose rule and evidence details`
-- `670151c fix(api): preserve evidence approval boundary`
-
-## 검증 결과
+## 검증 상태
 
 - Passed — `corepack pnpm check:deps`
 - Passed — `corepack pnpm typecheck`
 - Passed — `corepack pnpm lint`
-- Passed — `corepack pnpm test:unit`, 17개 파일 154건
-- Passed — `corepack pnpm test:integration`, 4개 파일 27건
+- Passed — `corepack pnpm test:unit`, 21개 파일 197건
+- Passed — `corepack pnpm test:integration`, 4개 파일 33건
 - Passed — `corepack pnpm build`, 전체 패키지와 앱 production build
 - Passed — `corepack pnpm test:e2e`, desktop/mobile Chromium 2건
-- Passed — GitHub Actions run `34241865070`, Ubuntu 1분 22초·Windows 2분 12초
-- Needs verification — 이 HANDOFF 문서만 추가한 최종 commit의 GitHub Actions
+- Passed — GitHub Actions run `34288087896`, Ubuntu 1분 7초·Windows 2분 37초
+- Passed — 변경 파일의 민감 파일명, private key, 로컬 절대경로, credential 형태 문자열 검사
 
-## 남은 데이터 한계와 위험
+## 남은 데이터 한계
 
-- BuildCores의 모호하거나 누락된 필드는 Canonical 값을 만들지 않는다. 해당 Rule은 데이터가 보강될 때까지 `UNKNOWN`을 반환한다.
-- CaseFan은 두께가 없어 import할 수 없다. Motherboard PCIe lane 의미와 추가 EPS 필수 여부도 원본 Schema만으로는 확정할 수 없다.
-- Field Evidence authorization과 Rate Limit은 provider contract와 메모리 reference 구현까지만 제공한다. 실제 계정·직급·분산 저장소 연동은 Consumer 책임이다.
-- Similarity 가중치는 합성 Fixture에서 결정론만 확인했다. 실제 Evidence가 쌓이면 issue별 보정이 필요하다.
-- Demo와 Reference API의 공개 배포·reverse proxy·Docker 구성은 Checkpoint 4 범위다.
+- BuildCores에는 Storage 장치 Key, M.2/SATA 공유 조건, 메인보드 PCIe physical/electrical 구분, 추가 EPS의 필수 여부, Fan 두께가 없다. Adapter는 이를 추정하지 않으며 관련 판정은 `UNKNOWN`이 될 수 있다.
+- BIOS/QVL Provider, 실제 계정·권한 시스템, 분산 Attachment Storage는 계약만 있고 구현은 없다.
+- Similarity 가중치는 합성 fixture로 결정론만 확인했다. 실제 Evidence가 쌓이면 issue별 보정이 필요하다.
+- 공개 배포, Docker, README·Architecture Diagram·실제 Demo Screenshot·Changesets/SemVer 정리는 Checkpoint 4 범위다.
 
 ## 다음 작업
 
-사용자 승인 전에는 Checkpoint 4를 시작하지 않는다. 승인받으면 Task 22~24의 README, 문서, 아키텍처 다이어그램, 실제 Demo Screenshot, OpenAPI 정리, Attribution, Changesets/SemVer, Docker와 최종 검증만 진행한다.
+사용자 검토 전에는 Checkpoint 4를 시작하지 않는다. 승인받으면 Task 22~24의 공개 문서와 릴리스 품질 작업만 진행한다.
