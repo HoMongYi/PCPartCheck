@@ -6,7 +6,8 @@ export const PcieSlotSpecSchema = Type.Object(
   {
     slotId: Type.String({ minLength: 1 }),
     generation: PositiveIntegerSchema,
-    lanes: PositiveIntegerSchema,
+    physicalLanes: PositiveIntegerSchema,
+    electricalLanes: PositiveIntegerSchema,
     positionIndex: PositiveIntegerSchema,
   },
   { additionalProperties: false },

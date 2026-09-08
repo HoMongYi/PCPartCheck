@@ -257,7 +257,7 @@ function mapRecord(record: BuildCoresSnapshotRecord):
 
 function canonicalPart(mapped: MappedBuildCoresPart, partId: PartId): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId,
     category: mapped.category,
     manufacturer: mapped.manufacturer,

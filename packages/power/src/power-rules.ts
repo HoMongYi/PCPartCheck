@@ -1,5 +1,7 @@
 import type {
   EngineRule,
+  PowerAdapterRequirement,
+  PowerConnectorRequirement,
   PowerConnectorSpec,
   PowerConnectorType,
 } from '@pcpartcheck/core';
@@ -72,10 +74,51 @@ function connectorCounts(connectors: readonly PowerConnectorSpec[]) {
   return counts;
 }
 
+interface PowerConsumer {
+  readonly partId: string;
+  readonly requirements: readonly PowerConnectorRequirement[];
+  readonly adapters: readonly PowerAdapterRequirement[];
+}
+
+function powerConsumers(
+  parts: Parameters<EngineRule['evaluate']>[0]['build']['parts'],
+): readonly PowerConsumer[] {
+  return parts.flatMap((part) => {
+    switch (part.category) {
+      case 'GPU':
+      case 'PCIE_CARD':
+        return [{
+          partId: part.partId,
+          requirements: part.spec.powerConnectorRequirements ?? [],
+          adapters: part.spec.powerAdapterRequirements ?? [],
+        }];
+      case 'MOTHERBOARD':
+        return [{
+          partId: part.partId,
+          requirements: part.spec.powerConnectorRequirements ?? [],
+          adapters: [],
+        }];
+      default:
+        return [];
+    }
+  });
+}
+
+function take(
+  available: Map<PowerConnectorType, number>,
+  type: PowerConnectorType,
+  count: number,
+): boolean {
+  const current = available.get(type) ?? 0;
+  if (current < count) return false;
+  available.set(type, current - count);
+  return true;
+}
+
 export const psuConnectorRule: EngineRule = {
   ruleId: 'psu-connectors',
   capabilityId: 'psu-connector',
-  evaluate: ({ build, installationContext }) => {
+  evaluate: ({ build, installationContext, policy }) => {
     const [psu] = byCategory(build.parts, 'PSU');
     if (!psu) {
       return {
@@ -86,62 +129,126 @@ export const psuConnectorRule: EngineRule = {
       };
     }
 
-    const requirements = [
-      ...byCategory(build.parts, 'GPU').flatMap(
-        ({ spec }) => spec.powerConnectors ?? [],
-      ),
-      ...byCategory(build.parts, 'MOTHERBOARD').flatMap(
-        ({ spec }) => spec.powerConnectors ?? [],
-      ),
-    ];
-    const required = connectorCounts(requirements);
     const provided = connectorCounts(psu.spec.powerConnectors);
-    let adapterRequired = false;
+    const consumers = powerConsumers(build.parts);
+    const adapterConditions = [];
+    const declaredConditions = [];
+    const optionalMissing: string[] = [];
 
-    for (const [type, count] of required) {
-      const available = provided.get(type) ?? 0;
-      if (available >= count) continue;
+    for (const mode of ['REQUIRED', 'CONDITIONAL', 'OPTIONAL'] as const) {
+      for (const consumer of consumers) {
+        for (const requirement of consumer.requirements.filter(
+          (candidate) => candidate.mode === mode,
+        )) {
+          if (take(provided, requirement.type, requirement.count)) {
+            if (
+              requirement.independentCableCount !== undefined &&
+              installationContext.pciePower.independentCableCount <
+                requirement.independentCableCount
+            ) {
+              return {
+                status: 'INCOMPATIBLE',
+                summary: 'Independent PCIe power cable requirement is not met',
+                reasons: [
+                  `${requirement.independentCableCount} independent cables are required by technical data`,
+                ],
+                evidenceIds: [],
+              };
+            }
+            continue;
+          }
 
-      const adapterEligible =
-        (type === 'PCIE_12V_2X6' || type === 'PCIE_12VHPWR') &&
-        installationContext.pciePower.adapterUsed &&
-        (provided.get('PCIE_8_PIN') ?? 0) >= (count - available) * 2;
-      if (adapterEligible) {
-        adapterRequired = true;
-        continue;
+          if (mode === 'OPTIONAL') {
+            optionalMissing.push(`${requirement.type} x${requirement.count}`);
+            continue;
+          }
+          if (mode === 'CONDITIONAL') {
+            if (!requirement.condition) {
+              return {
+                status: 'UNKNOWN',
+                summary: 'Conditional power connector requirement is incomplete',
+                reasons: [`${requirement.type} has no documented condition`],
+                evidenceIds: [],
+              };
+            }
+            declaredConditions.push(requirement.condition);
+            continue;
+          }
+
+          const highPowerConnector =
+            requirement.type === 'PCIE_12V_2X6' ||
+            requirement.type === 'PCIE_12VHPWR';
+          if (highPowerConnector && installationContext.pciePower.adapterUsed) {
+            const adapter = consumer.adapters.find(
+              (candidate) =>
+                candidate.outputType === requirement.type &&
+                candidate.outputCount >= requirement.count,
+            );
+            if (!adapter) {
+              return {
+                status: 'UNKNOWN',
+                summary: 'Power adapter input requirements are missing',
+                reasons: ['Adapter use is declared without technical input requirements'],
+                evidenceIds: [],
+              };
+            }
+            if (!take(provided, adapter.inputType, adapter.inputCount)) {
+              return {
+                status: 'INCOMPATIBLE',
+                summary: 'PSU cannot satisfy the documented adapter inputs',
+                reasons: [`Adapter requires ${adapter.inputType} x${adapter.inputCount}`],
+                evidenceIds: [],
+              };
+            }
+            if (
+              adapter.independentCableCount !== undefined &&
+              installationContext.pciePower.independentCableCount <
+                adapter.independentCableCount
+            ) {
+              return {
+                status: 'INCOMPATIBLE',
+                summary: 'Adapter independent cable requirement is not met',
+                reasons: [
+                  `Adapter requires ${adapter.independentCableCount} independent cables`,
+                ],
+                evidenceIds: [],
+              };
+            }
+            adapterConditions.push({
+              code: 'VERIFY_GPU_POWER_ADAPTER',
+              message: '기술 자료에 명시된 어댑터와 독립 케이블 연결을 확인하세요.',
+            });
+            continue;
+          }
+
+          return {
+            status: 'INCOMPATIBLE',
+            summary: 'PSU does not provide all required power connectors',
+            reasons: [`${requirement.type} requires ${requirement.count}`],
+            evidenceIds: [],
+          };
+        }
       }
-      return {
-        status: 'INCOMPATIBLE',
-        summary: 'PSU does not provide all required power connectors',
-        reasons: [`${type} requires ${count}, PSU provides ${available}`],
-        evidenceIds: [],
-      };
     }
 
-    const requiredPcie8 = required.get('PCIE_8_PIN') ?? 0;
-    if (
-      requiredPcie8 > 0 &&
-      installationContext.pciePower.independentCableCount < requiredPcie8
-    ) {
-      return {
-        status: 'INCOMPATIBLE',
-        summary: 'Independent PCIe power cable count is insufficient',
-        reasons: [`${requiredPcie8} independent cables are required`],
-        evidenceIds: [],
-      };
-    }
-
-    if (adapterRequired) {
+    const conditions = [...adapterConditions, ...declaredConditions];
+    if (conditions.length > 0) {
       return {
         status: 'CONDITIONAL',
-        summary: 'GPU power delivery requires an adapter',
-        reasons: ['A native high-power GPU connector is not available'],
-        conditions: [
-          {
-            code: 'VERIFY_GPU_POWER_ADAPTER',
-            message: '어댑터 규격과 독립 PCIe 케이블 연결 조건을 확인하세요.',
-          },
-        ],
+        summary: 'Power delivery depends on documented installation conditions',
+        reasons: ['One or more conditional power paths require verification'],
+        conditions,
+        evidenceIds: [],
+      };
+    }
+    if (
+      optionalMissing.length > 0 &&
+      policy.config?.warnOnOptionalConnectorMissing === true
+    ) {
+      return {
+        status: 'WARNING',
+        summary: 'Optional power connectors are not available',
+        reasons: optionalMissing,
         evidenceIds: [],
       };
     }

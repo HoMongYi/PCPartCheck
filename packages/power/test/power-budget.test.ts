@@ -4,7 +4,7 @@ import type {
   CompatibilityRuleContext,
   EngineRule,
   InstallationContext,
-  PowerConnectorSpec,
+  PowerConnectorRequirement,
 } from '@pcpartcheck/core';
 import { describe, expect, test } from 'vitest';
 
@@ -29,7 +29,7 @@ function part(
 ): CanonicalPart {
   const digit = String(idDigit);
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`,
     category,
     manufacturer: 'Example',
@@ -62,7 +62,7 @@ function baseParts(vendorRecommendedPsuW = 650): CanonicalPart[] {
 }
 
 function build(parts: readonly CanonicalPart[]): CanonicalBuild {
-  return { schemaVersion: '1.1.0', parts: [...parts] };
+  return { schemaVersion: '2.0.0', parts: [...parts] };
 }
 
 const installationContext: InstallationContext = {
@@ -179,10 +179,18 @@ describe('psuCapacityRule', () => {
 });
 
 describe('psuConnectorRule', () => {
-  function gpuWith(connectors: readonly PowerConnectorSpec[]): CanonicalPart {
+  function gpuWith(
+    requirements: readonly PowerConnectorRequirement[],
+    adapterRequirements?: readonly Readonly<Record<string, unknown>>[],
+  ): CanonicalPart {
     return part(
       'GPU',
-      { peakPowerW: 300, vendorRecommendedPsuW: 650, powerConnectors: connectors },
+      {
+        peakPowerW: 300,
+        vendorRecommendedPsuW: 650,
+        powerConnectorRequirements: requirements,
+        ...(adapterRequirements ? { powerAdapterRequirements: adapterRequirements } : {}),
+      },
       2,
     );
   }
@@ -190,7 +198,7 @@ describe('psuConnectorRule', () => {
   test('rejects missing GPU power connectors even when wattage is sufficient', async () => {
     const result = await exportedRule('psuConnectorRule').evaluate(
       context([
-        gpuWith([{ type: 'PCIE_8_PIN', count: 2 }]),
+        gpuWith([{ type: 'PCIE_8_PIN', count: 2, mode: 'REQUIRED' }]),
         part('PSU', { formFactor: 'ATX', ratedPowerW: 850, powerConnectors: [{ type: 'PCIE_8_PIN', count: 1 }] }, 5),
       ]),
     );
@@ -198,10 +206,161 @@ describe('psuConnectorRule', () => {
     expect(result.status).toBe('INCOMPATIBLE');
   });
 
-  test('returns conditional for a declared 12V-2x6 adapter path', async () => {
+  test('rejects a missing required EPS connector', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        part(
+          'MOTHERBOARD',
+          {
+            socket: 'AM5',
+            formFactor: 'ATX',
+            memoryTechnologies: ['DDR5'],
+            powerConnectorRequirements: [
+              { type: 'ATX_24_PIN', count: 1, mode: 'REQUIRED' },
+              { type: 'EPS_8_PIN', count: 1, mode: 'REQUIRED' },
+            ],
+          },
+          3,
+        ),
+        part(
+          'PSU',
+          {
+            formFactor: 'ATX',
+            ratedPowerW: 850,
+            powerConnectors: [{ type: 'ATX_24_PIN', count: 1 }],
+          },
+          5,
+        ),
+      ]),
+    );
+
+    expect(result.status).toBe('INCOMPATIBLE');
+  });
+
+  test('passes when only an optional EPS connector is missing', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        part(
+          'MOTHERBOARD',
+          {
+            socket: 'AM5',
+            formFactor: 'ATX',
+            memoryTechnologies: ['DDR5'],
+            powerConnectorRequirements: [
+              { type: 'ATX_24_PIN', count: 1, mode: 'REQUIRED' },
+              { type: 'EPS_8_PIN', count: 1, mode: 'OPTIONAL' },
+            ],
+          },
+          3,
+        ),
+        part(
+          'PSU',
+          {
+            formFactor: 'ATX',
+            ratedPowerW: 850,
+            powerConnectors: [{ type: 'ATX_24_PIN', count: 1 }],
+          },
+          5,
+        ),
+      ]),
+    );
+
+    expect(result.status).toBe('PASS');
+  });
+
+  test('returns conditional when a declared conditional connector is absent', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        gpuWith([
+          {
+            type: 'PCIE_8_PIN',
+            count: 1,
+            mode: 'CONDITIONAL',
+            condition: {
+              code: 'EXTREME_OVERCLOCK',
+              message: '극한 오버클록에서만 연결하세요.',
+            },
+          },
+        ]),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 850, powerConnectors: [] }, 5),
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      status: 'CONDITIONAL',
+      conditions: [{ code: 'EXTREME_OVERCLOCK' }],
+    });
+  });
+
+  test('passes with a native 12V-2x6 connector', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        gpuWith([{ type: 'PCIE_12V_2X6', count: 1, mode: 'REQUIRED' }]),
+        part(
+          'PSU',
+          {
+            formFactor: 'ATX',
+            ratedPowerW: 850,
+            powerConnectors: [{ type: 'PCIE_12V_2X6', count: 1 }],
+          },
+          5,
+        ),
+      ]),
+    );
+
+    expect(result.status).toBe('PASS');
+  });
+
+  test('returns conditional for an explicit three-input adapter path', async () => {
     const adaptedContext = {
       ...context([
-        gpuWith([{ type: 'PCIE_12V_2X6', count: 1 }]),
+        gpuWith(
+          [{ type: 'PCIE_12V_2X6', count: 1, mode: 'REQUIRED' }],
+          [
+            {
+              outputType: 'PCIE_12V_2X6',
+              outputCount: 1,
+              inputType: 'PCIE_8_PIN',
+              inputCount: 3,
+              independentCableCount: 3,
+            },
+          ],
+        ),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 850, powerConnectors: [{ type: 'PCIE_8_PIN', count: 3 }] }, 5),
+      ]),
+      installationContext: {
+        ...installationContext,
+        pciePower: {
+          ...installationContext.pciePower,
+          adapterUsed: true,
+          independentCableCount: 3,
+        },
+      },
+    };
+
+    const result = await exportedRule('psuConnectorRule').evaluate(adaptedContext);
+
+    expect(result).toMatchObject({
+      status: 'CONDITIONAL',
+      conditions: [{ code: 'VERIFY_GPU_POWER_ADAPTER' }],
+    });
+  });
+
+  test('rejects two inputs when an explicit adapter requires three', async () => {
+    const adaptedContext = {
+      ...context([
+        gpuWith(
+          [{ type: 'PCIE_12V_2X6', count: 1, mode: 'REQUIRED' }],
+          [
+            {
+              outputType: 'PCIE_12V_2X6',
+              outputCount: 1,
+              inputType: 'PCIE_8_PIN',
+              inputCount: 3,
+              independentCableCount: 3,
+            },
+          ],
+        ),
         part('PSU', { formFactor: 'ATX', ratedPowerW: 850, powerConnectors: [{ type: 'PCIE_8_PIN', count: 2 }] }, 5),
       ]),
       installationContext: {
@@ -212,9 +371,47 @@ describe('psuConnectorRule', () => {
 
     const result = await exportedRule('psuConnectorRule').evaluate(adaptedContext);
 
-    expect(result).toMatchObject({
-      status: 'CONDITIONAL',
-      conditions: [{ code: 'VERIFY_GPU_POWER_ADAPTER' }],
-    });
+    expect(result.status).toBe('INCOMPATIBLE');
+  });
+
+  test('returns unknown when adapter use is declared without input requirements', async () => {
+    const adaptedContext = {
+      ...context([
+        gpuWith([{ type: 'PCIE_12V_2X6', count: 1, mode: 'REQUIRED' }]),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 850, powerConnectors: [{ type: 'PCIE_8_PIN', count: 4 }] }, 5),
+      ]),
+      installationContext: {
+        ...installationContext,
+        pciePower: { ...installationContext.pciePower, adapterUsed: true },
+      },
+    };
+
+    const result = await exportedRule('psuConnectorRule').evaluate(adaptedContext);
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+});
+
+test('uses the policy allowance for a PCIe card without measured peak power', () => {
+  const result = exportedFunction('calculatePowerBudget')(
+    build([
+      ...baseParts(),
+      part(
+        'PCIE_CARD',
+        { cardType: 'HBA', physicalConnectorLanes: 8 },
+        8,
+      ),
+    ]),
+  );
+
+  expect(result).toMatchObject({
+    status: 'CALCULATED',
+    evidence: expect.arrayContaining([
+      expect.objectContaining({
+        allowanceKind: 'UNKNOWN_PCIE_CARD',
+        sourceKind: 'POLICY_DEFAULT',
+        valueW: 25,
+      }),
+    ]),
   });
 });

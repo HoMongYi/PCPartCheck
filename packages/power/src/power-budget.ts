@@ -191,6 +191,16 @@ export function calculatePowerBudget(
           policyDefault(part, 'PUMP', estimationPolicy.pumpW);
         }
         break;
+      case 'PCIE_CARD':
+        if (part.spec.peakPowerW !== undefined) canonical(part, part.spec.peakPowerW);
+        else {
+          policyDefault(
+            part,
+            'UNKNOWN_PCIE_CARD',
+            estimationPolicy.unknownPcieCardW,
+          );
+        }
+        break;
       case 'PC_CASE':
       case 'PSU':
         break;

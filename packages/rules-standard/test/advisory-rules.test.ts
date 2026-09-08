@@ -22,7 +22,7 @@ function board(options: {
   supportedDataRatesMtps?: readonly number[];
 }): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '22222222-2222-4222-8222-222222222222',
     category: 'MOTHERBOARD',
     manufacturer: 'Example',
@@ -47,7 +47,7 @@ function fan(
 ): CanonicalPart {
   const digit = String(index);
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`,
     category: 'CASE_FAN',
     manufacturer: 'Example',

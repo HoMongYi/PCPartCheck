@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-export const CANONICAL_SCHEMA_VERSION = '1.1.0' as const;
+export const CANONICAL_SCHEMA_VERSION = '2.0.0' as const;
 
 export type JsonPrimitive = boolean | null | number | string;
 export type JsonValue =

@@ -36,6 +36,7 @@ export const RequestedPartChangeSchema = Type.Object(
       Type.Literal('MEMORY'),
       Type.Literal('STORAGE'),
       Type.Literal('CASE_FAN'),
+      Type.Literal('PCIE_CARD'),
     ]),
     replacedPartId: Type.Optional(PartIdSchema),
     candidatePartId: Type.Optional(PartIdSchema),

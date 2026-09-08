@@ -61,7 +61,8 @@ test('M.2 and PCIe slots expose structured capabilities', () => {
     Value.Check(pcie, {
       slotId: 'PCIE_1',
       generation: 5,
-      lanes: 16,
+      physicalLanes: 16,
+      electricalLanes: 8,
       positionIndex: 1,
     }),
   ).toBe(true);
@@ -69,6 +70,15 @@ test('M.2 and PCIe slots expose structured capabilities', () => {
     Value.Check(pcie, {
       slotId: 'PCIE_1',
       generation: 'Gen5',
+      physicalLanes: 16,
+      electricalLanes: 8,
+      positionIndex: 1,
+    }),
+  ).toBe(false);
+  expect(
+    Value.Check(pcie, {
+      slotId: 'PCIE_1',
+      generation: 5,
       lanes: 16,
       positionIndex: 1,
     }),
@@ -117,10 +127,10 @@ test('memory uses MT/s data rate and reserves MHz for actual clock', () => {
   ).toBe(false);
 });
 
-test('new canonical parts use schema version 1.1.0 and structured spec', () => {
+test('new canonical parts use schema version 2.0.0 and structured spec', () => {
   const schema = exportedSchema('CanonicalPartSchema');
   const cpu = {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: 'a0dca831-d8d7-4f2c-9e81-d94d260dd5d7',
     category: 'CPU',
     manufacturer: 'Example',
@@ -139,7 +149,7 @@ test('new canonical parts use schema version 1.1.0 and structured spec', () => {
   expect(Value.Check(schema, { ...cpu, schemaVersion: '1.0.0' })).toBe(
     false,
   );
-  expect(Value.Check(schema, { ...cpu, schemaVersion: '2.0.0' })).toBe(
+  expect(Value.Check(schema, { ...cpu, schemaVersion: '1.1.0' })).toBe(
     false,
   );
 });
@@ -155,13 +165,58 @@ test('part category remains a closed public literal union', () => {
     | 'MEMORY'
     | 'STORAGE'
     | 'CASE_FAN'
+    | 'PCIE_CARD'
   >();
+});
+
+test('consumer connector requirements distinguish required optional and conditional modes', () => {
+  const schema = exportedSchema('PowerConnectorRequirementSchema');
+
+  expect(
+    Value.Check(schema, {
+      type: 'EPS_8_PIN',
+      count: 1,
+      mode: 'OPTIONAL',
+    }),
+  ).toBe(true);
+  expect(
+    Value.Check(schema, {
+      type: 'PCIE_8_PIN',
+      count: 2,
+      mode: 'CONDITIONAL',
+      condition: { code: 'HIGH_POWER_CPU', message: '고전력 설정에서 필요합니다.' },
+    }),
+  ).toBe(true);
+  expect(
+    Value.Check(schema, { type: 'EPS_8_PIN', count: 1 }),
+  ).toBe(false);
+});
+
+test('PCIe add-in cards have physical and maximum link widths', () => {
+  const schema = exportedSchema('CanonicalPartSchema');
+
+  expect(
+    Value.Check(schema, {
+      schemaVersion: '2.0.0',
+      partId: '99999999-9999-4999-8999-999999999999',
+      category: 'PCIE_CARD',
+      manufacturer: 'Example',
+      model: 'Capture Card',
+      status: 'ACTIVE',
+      spec: {
+        cardType: 'CAPTURE_CARD',
+        physicalConnectorLanes: 4,
+        maxLinkWidthLanes: 4,
+        pcieGeneration: 3,
+      },
+    }),
+  ).toBe(true);
 });
 
 test('PSU spec can carry normalized physical length for case clearance', () => {
   const schema = exportedSchema('CanonicalPartSchema');
   const psu = {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '55555555-5555-4555-8555-555555555555',
     category: 'PSU',
     manufacturer: 'Example',

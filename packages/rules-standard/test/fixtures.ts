@@ -25,7 +25,7 @@ export function context(
   currentInstallationContext: InstallationContext = installationContext,
 ): CompatibilityRuleContext {
   return {
-    build: { schemaVersion: '1.1.0', parts: [...parts] },
+    build: { schemaVersion: '2.0.0', parts: [...parts] },
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext: currentInstallationContext,
     policy: {
@@ -38,7 +38,7 @@ export function context(
 
 export function cpu(socket = 'AM5'): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '11111111-1111-4111-8111-111111111111',
     category: 'CPU',
     manufacturer: 'Example',
@@ -58,7 +58,7 @@ export function motherboard(
   }> = {},
 ): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '22222222-2222-4222-8222-222222222222',
     category: 'MOTHERBOARD',
     manufacturer: 'Example',
@@ -84,7 +84,7 @@ export function memory(
   capacityPerModuleGb = 16,
 ): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '33333333-3333-4333-8333-333333333333',
     category: 'MEMORY',
     manufacturer: 'Example',
@@ -106,7 +106,7 @@ export function pcCase(
   ],
 ): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '44444444-4444-4444-8444-444444444444',
     category: 'PC_CASE',
     manufacturer: 'Example',
@@ -118,7 +118,7 @@ export function pcCase(
 
 export function gpu(lengthMm?: number): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '55555555-5555-4555-8555-555555555555',
     category: 'GPU',
     manufacturer: 'Example',
@@ -136,7 +136,7 @@ export function cpuCooler(
   }> = {},
 ): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '66666666-6666-4666-8666-666666666666',
     category: 'CPU_COOLER',
     manufacturer: 'Example',
@@ -152,7 +152,7 @@ export function cpuCooler(
 
 export function psu(lengthMm?: number): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '77777777-7777-4777-8777-777777777777',
     category: 'PSU',
     manufacturer: 'Example',

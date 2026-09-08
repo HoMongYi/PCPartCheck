@@ -8,6 +8,7 @@ import {
   MemorySpecSchema,
   MotherboardSpecSchema,
   PcCaseSpecSchema,
+  PcieCardSpecSchema,
   PsuSpecSchema,
   StorageSpecSchema,
 } from './part-spec.js';
@@ -51,6 +52,7 @@ export const PsuPartSchema = canonicalPart('PSU', PsuSpecSchema);
 export const MemoryPartSchema = canonicalPart('MEMORY', MemorySpecSchema);
 export const StoragePartSchema = canonicalPart('STORAGE', StorageSpecSchema);
 export const CaseFanPartSchema = canonicalPart('CASE_FAN', CaseFanSpecSchema);
+export const PcieCardPartSchema = canonicalPart('PCIE_CARD', PcieCardSpecSchema);
 
 export const CanonicalPartSchema = Type.Union([
   CpuPartSchema,
@@ -62,6 +64,7 @@ export const CanonicalPartSchema = Type.Union([
   MemoryPartSchema,
   StoragePartSchema,
   CaseFanPartSchema,
+  PcieCardPartSchema,
 ]);
 export type CanonicalPart = Static<typeof CanonicalPartSchema>;
 export type PartCategory = CanonicalPart['category'];

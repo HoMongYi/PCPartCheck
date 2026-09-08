@@ -3,7 +3,11 @@ import { Type, type Static } from '@sinclair/typebox';
 import { FanConnectorTypeSchema, FanHeaderSpecSchema } from './fan-header-spec.js';
 import { M2SlotSpecSchema } from './m2-slot-spec.js';
 import { PcieSlotSpecSchema } from './pcie-slot-spec.js';
-import { PowerConnectorSpecSchema } from './power-connector-spec.js';
+import {
+  PowerAdapterRequirementSchema,
+  PowerConnectorRequirementSchema,
+  PowerConnectorSpecSchema,
+} from './power-connector-spec.js';
 import {
   MemoryTechnologySchema,
   MotherboardFormFactorSchema,
@@ -59,9 +63,15 @@ export const GpuSpecSchema = Type.Object(
     slotWidth: Type.Optional(PositiveNumberSchema),
     peakPowerW: Type.Optional(PositiveNumberSchema),
     vendorRecommendedPsuW: Type.Optional(PositiveNumberSchema),
-    powerConnectors: Type.Optional(Type.Array(PowerConnectorSpecSchema)),
+    powerConnectorRequirements: Type.Optional(
+      Type.Array(PowerConnectorRequirementSchema),
+    ),
+    powerAdapterRequirements: Type.Optional(
+      Type.Array(PowerAdapterRequirementSchema),
+    ),
     pcieGeneration: Type.Optional(PositiveIntegerSchema),
-    pcieLanes: Type.Optional(PositiveIntegerSchema),
+    physicalConnectorLanes: Type.Optional(PositiveIntegerSchema),
+    maxLinkWidthLanes: Type.Optional(PositiveIntegerSchema),
   },
   { additionalProperties: false },
 );
@@ -81,7 +91,9 @@ export const MotherboardSpecSchema = Type.Object(
     supportedDataRatesMtps: Type.Optional(
       Type.Array(PositiveIntegerSchema, { uniqueItems: true }),
     ),
-    powerConnectors: Type.Optional(Type.Array(PowerConnectorSpecSchema)),
+    powerConnectorRequirements: Type.Optional(
+      Type.Array(PowerConnectorRequirementSchema),
+    ),
     fanHeaders: Type.Optional(Type.Array(FanHeaderSpecSchema)),
     rgbHeaders: Type.Optional(Type.Array(RgbHeaderSpecSchema)),
     usbHeaders: Type.Optional(Type.Array(UsbHeaderSpecSchema)),
@@ -176,3 +188,27 @@ export const CaseFanSpecSchema = Type.Object(
   { additionalProperties: false },
 );
 export type CaseFanSpec = Static<typeof CaseFanSpecSchema>;
+
+export const PcieCardSpecSchema = Type.Object(
+  {
+    cardType: Type.Union([
+      Type.Literal('CAPTURE_CARD'),
+      Type.Literal('NIC'),
+      Type.Literal('HBA'),
+      Type.Literal('SOUND_CARD'),
+      Type.Literal('OTHER'),
+    ]),
+    physicalConnectorLanes: PositiveIntegerSchema,
+    maxLinkWidthLanes: Type.Optional(PositiveIntegerSchema),
+    pcieGeneration: Type.Optional(PositiveIntegerSchema),
+    peakPowerW: Type.Optional(PositiveNumberSchema),
+    powerConnectorRequirements: Type.Optional(
+      Type.Array(PowerConnectorRequirementSchema),
+    ),
+    powerAdapterRequirements: Type.Optional(
+      Type.Array(PowerAdapterRequirementSchema),
+    ),
+  },
+  { additionalProperties: false },
+);
+export type PcieCardSpec = Static<typeof PcieCardSpecSchema>;

@@ -1,6 +1,7 @@
 import type {
   EngineRule,
   M2SlotSpec,
+  PcieSlotSpec,
   StorageSpec,
 } from '@pcpartcheck/core';
 
@@ -138,20 +139,27 @@ export const pcieSlotCompatibilityRule: EngineRule = {
   ruleId: 'pcie-slot-compatibility',
   capabilityId: 'pcie-slot',
   evaluate: ({ build, installationContext }) => {
-    const [gpu] = partsOf(build.parts, 'GPU');
-    if (!gpu) {
+    const devices = [
+      ...partsOf(build.parts, 'GPU'),
+      ...partsOf(build.parts, 'PCIE_CARD'),
+    ].map((part) => ({
+      partId: part.partId,
+      physicalConnectorLanes: part.spec.physicalConnectorLanes,
+      maxLinkWidthLanes: part.spec.maxLinkWidthLanes,
+      pcieGeneration: part.spec.pcieGeneration,
+    }));
+    if (devices.length === 0) {
       return {
         status: 'NOT_CHECKED',
-        summary: 'No GPU is included in this build',
+        summary: 'No PCIe add-in device is included in this build',
         reasons: [],
         evidenceIds: [],
       };
     }
     if (
-      gpu.spec.pcieGeneration === undefined ||
-      gpu.spec.pcieLanes === undefined
+      devices.some((device) => device.physicalConnectorLanes === undefined)
     ) {
-      return unknown('GPU PCIe requirements are missing');
+      return unknown('PCIe physical connector size is missing');
     }
 
     const [motherboard] = partsOf(build.parts, 'MOTHERBOARD');
@@ -159,30 +167,143 @@ export const pcieSlotCompatibilityRule: EngineRule = {
       return unknown('Motherboard PCIe slot data is missing');
     }
     const occupied = new Set(installationContext.occupiedPcieSlotIds);
-    const candidates = motherboard.spec.pcieSlots.filter(
-      (slot) => !occupied.has(slot.slotId) && slot.lanes >= gpu.spec.pcieLanes!,
+    const assignment = findPcieAssignment(
+      devices as readonly CompletePcieDevice[],
+      motherboard.spec.pcieSlots.filter((slot) => !occupied.has(slot.slotId)),
     );
-    if (candidates.length === 0) {
+    if (!assignment) {
       return {
         status: 'INCOMPATIBLE',
-        summary: 'No unoccupied PCIe slot has enough lanes for the GPU',
-        reasons: [`GPU requires x${gpu.spec.pcieLanes}`],
-        evidenceIds: [],
-      };
-    }
-    if (
-      candidates.every((slot) => slot.generation < gpu.spec.pcieGeneration!)
-    ) {
-      return {
-        status: 'WARNING',
-        summary: 'GPU will operate on an older PCIe generation',
-        reasons: [`GPU Gen ${gpu.spec.pcieGeneration} exceeds available slot generation`],
+        summary: 'PCIe devices cannot be assigned to physical slots',
+        reasons: ['An unoccupied slot with sufficient physical lanes is required'],
         evidenceIds: [],
       };
     }
     return {
       status: 'PASS',
-      summary: 'A compatible PCIe slot is available for the GPU',
+      summary: 'PCIe devices fit the available physical slots',
+      reasons: [],
+      evidenceIds: [],
+    };
+  },
+};
+
+interface CompletePcieDevice {
+  readonly partId: string;
+  readonly physicalConnectorLanes: number;
+  readonly maxLinkWidthLanes?: number;
+  readonly pcieGeneration?: number;
+}
+
+interface PcieAssignment {
+  readonly device: CompletePcieDevice;
+  readonly slot: PcieSlotSpec;
+}
+
+function findPcieAssignment(
+  devices: readonly CompletePcieDevice[],
+  slots: readonly PcieSlotSpec[],
+): readonly PcieAssignment[] | undefined {
+  const orderedDevices = [...devices].sort(
+    (left, right) => right.physicalConnectorLanes - left.physicalConnectorLanes,
+  );
+  const occupied = new Set<string>();
+  const assignment: PcieAssignment[] = [];
+
+  function assign(index: number): boolean {
+    const device = orderedDevices[index];
+    if (!device) return true;
+    const candidates = slots
+      .filter(
+        (slot) =>
+          !occupied.has(slot.slotId) &&
+          slot.physicalLanes >= device.physicalConnectorLanes,
+      )
+      .sort(
+        (left, right) =>
+          right.electricalLanes - left.electricalLanes ||
+          right.generation - left.generation,
+      );
+    for (const slot of candidates) {
+      occupied.add(slot.slotId);
+      assignment.push({ device, slot });
+      if (assign(index + 1)) return true;
+      assignment.pop();
+      occupied.delete(slot.slotId);
+    }
+    return false;
+  }
+
+  return assign(0) ? assignment : undefined;
+}
+
+export const pcieBandwidthAdvisoryRule: EngineRule = {
+  ruleId: 'pcie-bandwidth-advisory',
+  capabilityId: 'pcie-bandwidth',
+  evaluate: ({ build, installationContext }) => {
+    const devices = [
+      ...partsOf(build.parts, 'GPU'),
+      ...partsOf(build.parts, 'PCIE_CARD'),
+    ].map((part) => ({
+      partId: part.partId,
+      physicalConnectorLanes: part.spec.physicalConnectorLanes,
+      maxLinkWidthLanes: part.spec.maxLinkWidthLanes,
+      pcieGeneration: part.spec.pcieGeneration,
+    }));
+    if (devices.length === 0) {
+      return {
+        status: 'NOT_CHECKED',
+        summary: 'No PCIe bandwidth requires evaluation',
+        reasons: [],
+        evidenceIds: [],
+      };
+    }
+    if (
+      devices.some(
+        (device) =>
+          device.physicalConnectorLanes === undefined ||
+          device.maxLinkWidthLanes === undefined ||
+          device.pcieGeneration === undefined,
+      )
+    ) {
+      return unknown('PCIe bandwidth capability data is missing');
+    }
+    const [motherboard] = partsOf(build.parts, 'MOTHERBOARD');
+    if (!motherboard?.spec.pcieSlots) {
+      return unknown('Motherboard PCIe slot data is missing');
+    }
+    const occupied = new Set(installationContext.occupiedPcieSlotIds);
+    const assignment = findPcieAssignment(
+      devices as readonly Required<CompletePcieDevice>[],
+      motherboard.spec.pcieSlots.filter((slot) => !occupied.has(slot.slotId)),
+    );
+    if (!assignment) {
+      return {
+        status: 'NOT_CHECKED',
+        summary: 'PCIe bandwidth was not evaluated because physical assignment failed',
+        reasons: [],
+        evidenceIds: [],
+      };
+    }
+    const limited = assignment.filter(
+      ({ device, slot }) =>
+        slot.electricalLanes < (device.maxLinkWidthLanes ?? 0) ||
+        slot.generation < (device.pcieGeneration ?? 0),
+    );
+    if (limited.length > 0) {
+      return {
+        status: 'WARNING',
+        summary: 'One or more PCIe devices will use a lower link capability',
+        reasons: limited.map(
+          ({ device, slot }) =>
+            `${device.partId} uses Gen ${slot.generation} x${slot.electricalLanes}`,
+        ),
+        evidenceIds: [],
+      };
+    }
+    return {
+      status: 'PASS',
+      summary: 'PCIe slot bandwidth meets device link capabilities',
       reasons: [],
       evidenceIds: [],
     };
@@ -193,4 +314,5 @@ export const storageRules = [
   m2SlotCompatibilityRule,
   m2SataSharingRule,
   pcieSlotCompatibilityRule,
+  pcieBandwidthAdvisoryRule,
 ] as const;

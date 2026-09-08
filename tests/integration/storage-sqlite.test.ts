@@ -52,7 +52,7 @@ async function openStore(): Promise<{ directory: string; filename: string; store
 }
 
 const cpu: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '11111111-1111-4111-8111-111111111111',
   category: 'CPU',
   manufacturer: 'Example',
@@ -187,11 +187,11 @@ describe('SQLite repositories', () => {
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
       policyVersion: '1.0.0',
-      canonicalSchemaVersion: '1.1.0',
+      canonicalSchemaVersion: '2.0.0',
       identityMapperVersion: '1.0.0',
       providerVersions: [],
       inputSnapshot: {
-        build: { schemaVersion: '1.1.0', parts: [cpu] },
+        build: { schemaVersion: '2.0.0', parts: [cpu] },
         intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
         installationContext,
         policyProfile: {

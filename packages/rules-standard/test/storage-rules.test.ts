@@ -15,7 +15,7 @@ function board(
   pcieSlots?: readonly PcieSlotSpec[],
 ): CanonicalPart {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: '22222222-2222-4222-8222-222222222222',
     category: 'MOTHERBOARD',
     manufacturer: 'Example',
@@ -38,7 +38,7 @@ function storage(
 ): CanonicalPart {
   const digit = String(index).repeat(8);
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     partId: `${digit}-${String(index).repeat(4)}-4${String(index).repeat(3)}-8${String(index).repeat(3)}-${String(index).repeat(12)}`,
     category: 'STORAGE',
     manufacturer: 'Example',
@@ -121,17 +121,29 @@ describe('m2SataSharingRule', () => {
 });
 
 describe('pcieSlotCompatibilityRule', () => {
-  test('rejects a GPU when no unoccupied slot has enough lanes', async () => {
+  test('rejects a GPU only when no physical slot is large enough', async () => {
     const graphics = {
       ...gpu(300),
-      spec: { lengthMm: 300, pcieGeneration: 5, pcieLanes: 16 },
+      schemaVersion: '2.0.0',
+      spec: {
+        lengthMm: 300,
+        pcieGeneration: 5,
+        physicalConnectorLanes: 16,
+        maxLinkWidthLanes: 16,
+      },
     } as CanonicalPart;
     const result = await exportedRule('pcieSlotCompatibilityRule').evaluate(
       context(
         [
           graphics,
           board(undefined, [
-            { slotId: 'PCIE_1', generation: 5, lanes: 4, positionIndex: 1 },
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 4,
+              electricalLanes: 4,
+              positionIndex: 1,
+            },
           ]),
         ],
         'pcie-slot',
@@ -141,24 +153,80 @@ describe('pcieSlotCompatibilityRule', () => {
     expect(result.status).toBe('INCOMPATIBLE');
   });
 
-  test('warns when the slot generation is lower but lane count fits', async () => {
+  test('allows a physical x16 GPU in a physical x16 electrical x8 slot', async () => {
     const graphics = {
       ...gpu(300),
-      spec: { lengthMm: 300, pcieGeneration: 5, pcieLanes: 16 },
+      schemaVersion: '2.0.0',
+      spec: {
+        lengthMm: 300,
+        pcieGeneration: 5,
+        physicalConnectorLanes: 16,
+        maxLinkWidthLanes: 16,
+      },
     } as CanonicalPart;
     const result = await exportedRule('pcieSlotCompatibilityRule').evaluate(
       context(
         [
           graphics,
           board(undefined, [
-            { slotId: 'PCIE_1', generation: 4, lanes: 16, positionIndex: 1 },
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 16,
+              electricalLanes: 8,
+              positionIndex: 1,
+            },
           ]),
         ],
         'pcie-slot',
       ),
     );
 
-    expect(result.status).toBe('WARNING');
+    expect(result.status).toBe('PASS');
+  });
+
+  test('assigns GPU and add-in cards to separate physical slots', async () => {
+    const graphics = {
+      ...gpu(300),
+      schemaVersion: '2.0.0',
+      spec: { lengthMm: 300, physicalConnectorLanes: 16 },
+    } as CanonicalPart;
+    const captureCard = {
+      schemaVersion: '2.0.0',
+      partId: '99999999-9999-4999-8999-999999999999',
+      category: 'PCIE_CARD',
+      manufacturer: 'Example',
+      model: 'Capture Card',
+      status: 'ACTIVE',
+      spec: { cardType: 'CAPTURE_CARD', physicalConnectorLanes: 4 },
+    } as CanonicalPart;
+    const result = await exportedRule('pcieSlotCompatibilityRule').evaluate(
+      context(
+        [
+          graphics,
+          captureCard,
+          board(undefined, [
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 16,
+              electricalLanes: 8,
+              positionIndex: 1,
+            },
+            {
+              slotId: 'PCIE_2',
+              generation: 4,
+              physicalLanes: 4,
+              electricalLanes: 4,
+              positionIndex: 2,
+            },
+          ]),
+        ],
+        'pcie-slot',
+      ),
+    );
+
+    expect(result.status).toBe('PASS');
   });
 
   test('returns unknown when GPU PCIe requirements are missing', async () => {
@@ -167,7 +235,13 @@ describe('pcieSlotCompatibilityRule', () => {
         [
           gpu(300),
           board(undefined, [
-            { slotId: 'PCIE_1', generation: 5, lanes: 16, positionIndex: 1 },
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 16,
+              electricalLanes: 16,
+              positionIndex: 1,
+            },
           ]),
         ],
         'pcie-slot',
@@ -175,5 +249,62 @@ describe('pcieSlotCompatibilityRule', () => {
     );
 
     expect(result.status).toBe('UNKNOWN');
+  });
+});
+
+describe('pcieBandwidthAdvisoryRule', () => {
+  const graphics = {
+    ...gpu(300),
+    schemaVersion: '2.0.0',
+    spec: {
+      lengthMm: 300,
+      pcieGeneration: 5,
+      physicalConnectorLanes: 16,
+      maxLinkWidthLanes: 16,
+    },
+  } as CanonicalPart;
+
+  test('warns about electrical x8 without calling the GPU incompatible', async () => {
+    const result = await exportedRule('pcieBandwidthAdvisoryRule').evaluate(
+      context(
+        [
+          graphics,
+          board(undefined, [
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 16,
+              electricalLanes: 8,
+              positionIndex: 1,
+            },
+          ]),
+        ],
+        'pcie-bandwidth',
+      ),
+    );
+
+    expect(result.status).toBe('WARNING');
+  });
+
+  test('warns when the available slot generation is lower', async () => {
+    const result = await exportedRule('pcieBandwidthAdvisoryRule').evaluate(
+      context(
+        [
+          graphics,
+          board(undefined, [
+            {
+              slotId: 'PCIE_1',
+              generation: 4,
+              physicalLanes: 16,
+              electricalLanes: 16,
+              positionIndex: 1,
+            },
+          ]),
+        ],
+        'pcie-bandwidth',
+      ),
+    );
+
+    expect(result.status).toBe('WARNING');
   });
 });

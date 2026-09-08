@@ -33,7 +33,7 @@ const baseInstallationContext: InstallationContext = {
 };
 
 const cpu: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000001',
   category: 'CPU',
   manufacturer: '샘플 제조사',
@@ -43,7 +43,7 @@ const cpu: CanonicalPart = {
 };
 
 const motherboard: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000002',
   category: 'MOTHERBOARD',
   manufacturer: '샘플 제조사',
@@ -57,16 +57,16 @@ const motherboard: CanonicalPart = {
     memorySlots: 4,
     maxMemoryGb: 128,
     supportedDataRatesMtps: [4800, 5600, 6000],
-    powerConnectors: [
-      { type: 'ATX_24_PIN', count: 1 },
-      { type: 'EPS_8_PIN', count: 1 },
+    powerConnectorRequirements: [
+      { type: 'ATX_24_PIN', count: 1, mode: 'REQUIRED' },
+      { type: 'EPS_8_PIN', count: 1, mode: 'REQUIRED' },
     ],
     rgbHeaders: [{ type: 'RGB_12V_4_PIN', count: 1 }],
   },
 };
 
 const memory: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000003',
   category: 'MEMORY',
   manufacturer: '샘플 제조사',
@@ -82,7 +82,7 @@ const memory: CanonicalPart = {
 };
 
 const pcCase: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000004',
   category: 'PC_CASE',
   manufacturer: '샘플 제조사',
@@ -105,7 +105,7 @@ const pcCase: CanonicalPart = {
 };
 
 const gpu: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000005',
   category: 'GPU',
   manufacturer: '샘플 제조사',
@@ -115,12 +115,19 @@ const gpu: CanonicalPart = {
     lengthMm: 330,
     peakPowerW: 300,
     vendorRecommendedPsuW: 750,
-    powerConnectors: [{ type: 'PCIE_8_PIN', count: 2 }],
+    powerConnectorRequirements: [
+      {
+        type: 'PCIE_8_PIN',
+        count: 2,
+        mode: 'REQUIRED',
+        independentCableCount: 2,
+      },
+    ],
   },
 };
 
 const psu: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000006',
   category: 'PSU',
   manufacturer: '샘플 제조사',
@@ -139,7 +146,7 @@ const psu: CanonicalPart = {
 };
 
 const argbFan: CanonicalPart = {
-  schemaVersion: '1.1.0',
+  schemaVersion: '2.0.0',
   partId: '10000000-0000-4000-8000-000000000007',
   category: 'CASE_FAN',
   manufacturer: '샘플 제조사',
@@ -159,7 +166,7 @@ function input(
   installationContext: InstallationContext = baseInstallationContext,
 ): CompatibilityCheckInput {
   return {
-    build: { schemaVersion: '1.1.0', parts: [...parts] },
+    build: { schemaVersion: '2.0.0', parts: [...parts] },
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext,
     policyProfile: {
@@ -262,7 +269,14 @@ export const DEMO_SCENARIOS: readonly DemoScenario[] = [
           spec: {
             peakPowerW: 300,
             vendorRecommendedPsuW: 750,
-            powerConnectors: [{ type: 'PCIE_8_PIN', count: 2 }],
+            powerConnectorRequirements: [
+              {
+                type: 'PCIE_8_PIN',
+                count: 2,
+                mode: 'REQUIRED',
+                independentCableCount: 2,
+              },
+            ],
           },
         },
         pcCase,
