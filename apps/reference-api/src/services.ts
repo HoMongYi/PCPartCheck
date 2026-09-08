@@ -21,7 +21,9 @@ import {
 } from '@pcpartcheck/demo-data';
 import {
   applyExactFieldEvidence,
-  type FieldEvidenceRecord,
+  createDraftFieldEvidence,
+  moderateFieldEvidence,
+  patchDraftFieldEvidence,
 } from '@pcpartcheck/evidence';
 import { calculatePowerBudget, powerRules } from '@pcpartcheck/power';
 import {
@@ -225,27 +227,27 @@ export function createReferenceApiServices(): PcPartCheckApiServices {
       }),
     listCapabilities: async () => capabilities,
     listProfiles: async () => profiles,
-    createFieldEvidence: async (record) => {
-      if (fieldEvidence.has(record.evidenceId)) {
-        throw new Error(`Field evidence already exists: ${record.evidenceId}`);
+    createFieldEvidence: async (input, audit) => {
+      if (fieldEvidence.has(input.evidenceId)) {
+        throw new Error(`Field evidence already exists: ${input.evidenceId}`);
       }
-      const created = structuredClone(record);
+      const created = createDraftFieldEvidence(input, audit);
       fieldEvidence.set(created.evidenceId, created);
       return created;
     },
-    patchFieldEvidence: async (evidenceId, patch: FieldEvidencePatch) => {
+    patchFieldEvidence: async (evidenceId, patch: FieldEvidencePatch, audit) => {
       const current = fieldEvidence.get(evidenceId);
       if (!current) return undefined;
-      const updated = { ...current, ...structuredClone(patch) } as FieldEvidenceRecord;
+      const updated = patchDraftFieldEvidence(current, patch, audit);
       fieldEvidence.set(evidenceId, updated);
       return updated;
     },
-    approveFieldEvidence: async (evidenceId) => {
+    moderateFieldEvidence: async (evidenceId, moderation) => {
       const current = fieldEvidence.get(evidenceId);
       if (!current) return undefined;
-      const approved: FieldEvidenceRecord = { ...current, status: 'APPROVED' };
-      fieldEvidence.set(evidenceId, approved);
-      return approved;
+      const moderated = moderateFieldEvidence(current, moderation);
+      fieldEvidence.set(evidenceId, moderated);
+      return moderated;
     },
     getDemoDashboard,
   };

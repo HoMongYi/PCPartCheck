@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import * as referenceApi from '../../apps/reference-api/src/services.js';
+import { buildReferenceServer } from '../../apps/reference-api/src/server.js';
 
 describe('reference API composition', () => {
   test('evaluates every synthetic scenario and exposes only the top three similar records', async () => {
@@ -57,5 +58,23 @@ describe('reference API composition', () => {
     expect(dashboard.similarEvidence).toHaveLength(3);
     expect(dashboard.similarEvidence[0]).not.toHaveProperty('status');
     expect(dashboard.similarEvidence[0]).not.toHaveProperty('decision');
+  });
+
+  test('serves only the synthetic demo attachment through the reference API', async () => {
+    const server = await buildReferenceServer();
+    const response = await server.inject({
+      method: 'GET',
+      url: '/v1/field-evidence/demo-field-clearance-exact/attachments/demo-clearance-photo',
+    });
+    await server.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      reference: {
+        attachmentId: 'demo-clearance-photo',
+        mediaType: 'image/png',
+        description: '합성 데모 조립 사진',
+      },
+    });
   });
 });

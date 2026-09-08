@@ -2,6 +2,8 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import {
   ApiErrorResponseSchema,
+  AttachmentParamsSchema,
+  AttachmentReadResponseSchema,
   CapabilitiesResponseSchema,
   CanonicalPartResponseSchema,
   CompatibilityCheckBatchRequestSchema,
@@ -9,6 +11,8 @@ import {
   CompatibilityCheckRequestSchema,
   DemoDashboardResponseSchema,
   EvidenceResponseSchema,
+  FieldEvidenceCreateRequestSchema,
+  FieldEvidenceModerationRequestSchema,
   FieldEvidencePatchSchema,
   FieldEvidenceRecordSchema,
   HealthResponseSchema,
@@ -21,9 +25,14 @@ import {
   SimilarEvidenceQueryStringSchema,
   SimilarEvidenceResponseSchema,
   type AuthorizationAction,
+  type AuthorizationDecision,
   type AuthorizationProvider,
+  type AttachmentParams,
+  type AttachmentStorageProvider,
   type CompatibilityCheckBatchRequest,
   type CompatibilityCheckRequest,
+  type FieldEvidenceCreateRequest,
+  type FieldEvidenceModerationRequest,
   type FieldEvidenceRecord,
   type FieldEvidencePatch,
   type IdParams,
@@ -50,6 +59,8 @@ export interface BuildHttpServerOptions {
   readonly services: PcPartCheckApiServices;
   readonly authorizationProvider?: AuthorizationProvider;
   readonly rateLimitProvider?: RateLimitProvider;
+  readonly attachmentStorageProvider?: AttachmentStorageProvider;
+  readonly clock?: () => string;
   readonly logger?: FastifyServerOptions['logger'];
 }
 
@@ -70,19 +81,19 @@ async function authorize(
   request: FastifyRequest,
   reply: FastifyReply,
   action: AuthorizationAction,
-): Promise<boolean> {
+): Promise<Extract<AuthorizationDecision, { readonly allowed: true }> | undefined> {
   const credential = request.headers.authorization;
   const decision = await provider.authorize({
     action,
     ...(credential ? { credential } : {}),
   });
-  if (decision.allowed) return true;
+  if (decision.allowed) return decision;
   const statusCode = decision.authenticated ? 403 : 401;
   await reply
     .code(statusCode)
     .send(error(statusCode === 401 ? 'UNAUTHENTICATED' : 'FORBIDDEN',
       statusCode === 401 ? 'Authentication is required' : 'Permission denied'));
-  return false;
+  return undefined;
 }
 
 async function authorizeEvidenceRead(
@@ -92,13 +103,26 @@ async function authorizeEvidenceRead(
   evidence: FieldEvidenceRecord,
 ): Promise<boolean> {
   if (evidence.visibility === 'PUBLIC') return true;
-  return authorize(
+  return Boolean(await authorize(
     provider,
     request,
     reply,
     evidence.visibility === 'ADMIN_ONLY'
       ? 'FIELD_EVIDENCE_READ_ADMIN'
       : 'FIELD_EVIDENCE_READ_STAFF',
+  ));
+}
+
+function isFieldEvidenceConflict(
+  candidate: unknown,
+): candidate is { readonly code: 'FIELD_EVIDENCE_STATE_CONFLICT'; readonly message: string } {
+  return (
+    candidate !== null &&
+    typeof candidate === 'object' &&
+    'code' in candidate &&
+    candidate.code === 'FIELD_EVIDENCE_STATE_CONFLICT' &&
+    'message' in candidate &&
+    typeof candidate.message === 'string'
   );
 }
 
@@ -110,6 +134,7 @@ export async function buildHttpServer(
     options.authorizationProvider ?? createMemoryAuthorizationProvider();
   const rateLimitProvider =
     options.rateLimitProvider ?? createMemoryRateLimitProvider();
+  const clock = options.clock ?? (() => new Date().toISOString());
 
   await server.register(swagger, {
     openapi: {
@@ -280,22 +305,23 @@ export async function buildHttpServer(
     {
       schema: {
         tags: ['evidence'],
-        body: FieldEvidenceRecordSchema,
+        body: FieldEvidenceCreateRequestSchema,
         response: { 201: FieldEvidenceRecordSchema, ...commonErrors },
       },
     },
     async (request, reply) => {
-      if (!await authorize(authorizationProvider, request, reply, 'FIELD_EVIDENCE_WRITE')) {
+      const authorized = await authorize(
+        authorizationProvider,
+        request,
+        reply,
+        'FIELD_EVIDENCE_WRITE',
+      );
+      if (!authorized) {
         return reply;
       }
-      const record = request.body as FieldEvidenceRecord;
-      if (record.status !== 'DRAFT') {
-        return reply.code(400).send(
-          error('INVALID_EVIDENCE_STATUS', 'New field evidence must start as DRAFT'),
-        );
-      }
       const created = await options.services.createFieldEvidence(
-        record,
+        request.body as FieldEvidenceCreateRequest,
+        { principalId: authorized.principalId, at: clock() },
       );
       return reply.code(201).send(created);
     },
@@ -312,38 +338,132 @@ export async function buildHttpServer(
       },
     },
     async (request, reply) => {
-      if (!await authorize(authorizationProvider, request, reply, 'FIELD_EVIDENCE_WRITE')) {
+      const authorized = await authorize(
+        authorizationProvider,
+        request,
+        reply,
+        'FIELD_EVIDENCE_WRITE',
+      );
+      if (!authorized) {
         return reply;
       }
-      const updated = await options.services.patchFieldEvidence(
-        (request.params as IdParams).id,
-        request.body as FieldEvidencePatch,
-      );
-      return updated ?? reply.code(404).send(
-        error('EVIDENCE_NOT_FOUND', 'Evidence not found'),
-      );
+      try {
+        const updated = await options.services.patchFieldEvidence(
+          (request.params as IdParams).id,
+          request.body as FieldEvidencePatch,
+          { principalId: authorized.principalId, at: clock() },
+        );
+        return updated ?? reply.code(404).send(
+          error('EVIDENCE_NOT_FOUND', 'Evidence not found'),
+        );
+      } catch (caught) {
+        if (isFieldEvidenceConflict(caught)) {
+          return reply.code(409).send(error(caught.code, caught.message));
+        }
+        throw caught;
+      }
     },
   );
 
+  async function moderate(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    action: 'APPROVE' | 'REJECT',
+  ) {
+    const authorized = await authorize(
+      authorizationProvider,
+      request,
+      reply,
+      'FIELD_EVIDENCE_MODERATE',
+    );
+    if (!authorized) return reply;
+    try {
+      const moderated = await options.services.moderateFieldEvidence(
+        (request.params as IdParams).id,
+        {
+          action,
+          principalId: authorized.principalId,
+          at: clock(),
+          ...((request.body as FieldEvidenceModerationRequest | undefined)
+            ?.reason === undefined
+            ? {}
+            : {
+                reason: (request.body as FieldEvidenceModerationRequest).reason,
+              }),
+        },
+      );
+      return moderated ?? reply.code(404).send(
+        error('EVIDENCE_NOT_FOUND', 'Evidence not found'),
+      );
+    } catch (caught) {
+      if (isFieldEvidenceConflict(caught)) {
+        return reply.code(409).send(error(caught.code, caught.message));
+      }
+      throw caught;
+    }
+  }
+
+  const moderationSchema = {
+    tags: ['evidence'],
+    params: IdParamsSchema,
+    body: FieldEvidenceModerationRequestSchema,
+    response: { 200: FieldEvidenceRecordSchema, ...commonErrors, 409: ApiErrorResponseSchema },
+  } as const;
+
   server.post(
     '/v1/field-evidence/:id/approve',
+    { schema: moderationSchema },
+    async (request, reply) => moderate(request, reply, 'APPROVE'),
+  );
+
+  server.post(
+    '/v1/field-evidence/:id/reject',
+    { schema: moderationSchema },
+    async (request, reply) => moderate(request, reply, 'REJECT'),
+  );
+
+  server.get(
+    '/v1/field-evidence/:id/attachments/:attachmentId',
     {
       schema: {
         tags: ['evidence'],
-        params: IdParamsSchema,
-        response: { 200: FieldEvidenceRecordSchema, ...commonErrors },
+        params: AttachmentParamsSchema,
+        response: { 200: AttachmentReadResponseSchema, ...commonErrors },
       },
     },
     async (request, reply) => {
-      if (!await authorize(authorizationProvider, request, reply, 'FIELD_EVIDENCE_APPROVE')) {
-        return reply;
+      const { id, attachmentId } = request.params as AttachmentParams;
+      const evidence = await options.services.getEvidence(id);
+      if (!evidence || !('visibility' in evidence)) {
+        return reply.code(404).send(
+          error('EVIDENCE_NOT_FOUND', 'Field evidence not found'),
+        );
       }
-      const approved = await options.services.approveFieldEvidence(
-        (request.params as IdParams).id,
+      const allowed = await authorizeEvidenceRead(
+        authorizationProvider,
+        request,
+        reply,
+        evidence,
       );
-      return approved ?? reply.code(404).send(
-        error('EVIDENCE_NOT_FOUND', 'Evidence not found'),
+      if (!allowed) return reply;
+      const reference = evidence.attachments?.find(
+        (candidate) => candidate.attachmentId === attachmentId,
       );
+      if (!reference || !options.attachmentStorageProvider) {
+        return reply.code(404).send(
+          error('ATTACHMENT_NOT_FOUND', 'Attachment not found'),
+        );
+      }
+      const stored = await options.attachmentStorageProvider.get(attachmentId);
+      if (!stored || stored.reference.storageKey !== reference.storageKey) {
+        return reply.code(404).send(
+          error('ATTACHMENT_NOT_FOUND', 'Attachment not found'),
+        );
+      }
+      return {
+        reference,
+        contentBase64: Buffer.from(stored.data).toString('base64'),
+      };
     },
   );
 

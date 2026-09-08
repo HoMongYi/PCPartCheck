@@ -25,6 +25,16 @@ const queryContext: InstallationContext = {
   },
 };
 
+export const DEMO_ATTACHMENT_REFERENCE = {
+  attachmentId: 'demo-clearance-photo',
+  mediaType: 'image/png',
+  checksum: 'sha256:431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460',
+  sizeBytes: 68,
+  storageKey: 'memory:demo-clearance-photo',
+  description: '합성 데모 조립 사진',
+  capturedAt: '2026-08-05T00:00:00.000Z',
+} as const;
+
 export const DEMO_SIMILARITY_QUERY = {
   issueType: 'PHYSICAL_CLEARANCE' as const,
   parts: [
@@ -45,7 +55,7 @@ function similarFailure(
   reportedAt: string,
 ): FieldEvidenceRecord {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     evidenceId,
     status: 'APPROVED',
     visibility: 'PUBLIC',
@@ -62,11 +72,16 @@ function similarFailure(
       { fieldPath: 'case.maxGpuLengthMm', value: 380, unit: 'mm' },
     ],
     reportedAt,
+    createdByPrincipalId: 'demo-seed',
+    createdAt: reportedAt,
+    updatedAt: reportedAt,
+    moderatedByPrincipalId: 'demo-moderator',
+    moderatedAt: reportedAt,
   };
 }
 
 export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecord = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   evidenceId: 'demo-field-clearance-exact',
   status: 'APPROVED',
   visibility: 'PUBLIC',
@@ -76,7 +91,13 @@ export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecord = {
   parts: DEMO_SIMILARITY_QUERY.parts,
   installationContext: queryContext,
   measurements: DEMO_SIMILARITY_QUERY.measurements,
+  attachments: [DEMO_ATTACHMENT_REFERENCE],
   reportedAt: '2026-08-05T00:00:00.000Z',
+  createdByPrincipalId: 'demo-seed',
+  createdAt: '2026-08-05T00:00:00.000Z',
+  updatedAt: '2026-08-05T00:00:00.000Z',
+  moderatedByPrincipalId: 'demo-moderator',
+  moderatedAt: '2026-08-05T00:00:00.000Z',
 };
 
 export const DEMO_FIELD_EVIDENCE_RECORDS: readonly FieldEvidenceRecord[] = [

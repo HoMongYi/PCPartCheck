@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import {
+  createDraftFieldEvidence,
+  createMemoryAttachmentStorageProvider,
+  moderateFieldEvidence,
+  patchDraftFieldEvidence,
+  type FieldEvidenceRecord,
+} from '../../packages/evidence/src/index.js';
 import * as httpServer from '../../packages/http-server/src/index.js';
 
 interface TestResponse {
@@ -60,8 +67,8 @@ async function createServer(
         ruleResults: [],
       },
     } as const;
-  const fieldEvidence = {
-    schemaVersion: '2.0.0',
+  const fieldEvidence: FieldEvidenceRecord = {
+    schemaVersion: '3.0.0',
     evidenceId: 'field-1',
     status: 'DRAFT',
     visibility: 'PUBLIC',
@@ -71,19 +78,33 @@ async function createServer(
     parts: [
       { category: 'GPU', partId: '11111111-1111-4111-8111-111111111111' },
     ],
-    installationContext: validCheckRequest.installationContext,
+    installationContext: validCheckRequest.installationContext as unknown as FieldEvidenceRecord['installationContext'],
+    attachments: [
+      {
+        attachmentId: 'demo-photo-1',
+        mediaType: 'image/png',
+        checksum: `sha256:${'a'.repeat(64)}`,
+        sizeBytes: 4,
+        storageKey: 'memory:demo-photo-1',
+      },
+    ],
     reportedAt: '2026-09-08T00:00:00.000Z',
-  } as const;
+    createdByPrincipalId: 'fixture-writer',
+    createdAt: '2026-09-08T00:00:00.000Z',
+    updatedAt: '2026-09-08T00:00:00.000Z',
+  };
+  const fieldEvidenceStore = new Map([[fieldEvidence.evidenceId, fieldEvidence]]);
   const services = {
     checkCompatibility: vi.fn(async () => resultSnapshot),
     checkCompatibilityBatch: vi.fn(async () => ({ results: [resultSnapshot] })),
     listParts: vi.fn(async () => ({ items: [], total: 0 })),
     getPart: vi.fn(async () => undefined),
-    getEvidence: vi.fn(async (evidenceId: string) =>
-      evidenceId === 'staff-only'
-        ? { ...fieldEvidence, evidenceId, visibility: 'STAFF_ONLY' as const }
-        : fieldEvidence,
-    ),
+    getEvidence: vi.fn(async (evidenceId: string) => {
+      if (evidenceId === 'staff-only') {
+        return { ...fieldEvidence, evidenceId, visibility: 'STAFF_ONLY' as const };
+      }
+      return fieldEvidenceStore.get(evidenceId);
+    }),
     findSimilarEvidence: vi.fn(async () => [
       {
         evidenceId: 'similar-1',
@@ -98,12 +119,25 @@ async function createServer(
       { capabilityId: 'socket', title: 'Socket' },
     ]),
     listProfiles: vi.fn(async () => [validCheckRequest.policyProfile]),
-    createFieldEvidence: vi.fn(async () => fieldEvidence),
-    patchFieldEvidence: vi.fn(async () => fieldEvidence),
-    approveFieldEvidence: vi.fn(async () => ({
-      ...fieldEvidence,
-      status: 'APPROVED' as const,
-    })),
+    createFieldEvidence: vi.fn(async (input, audit) => {
+      const created = createDraftFieldEvidence(input, audit);
+      fieldEvidenceStore.set(created.evidenceId, created);
+      return created;
+    }),
+    patchFieldEvidence: vi.fn(async (evidenceId, patch, audit) => {
+      const current = fieldEvidenceStore.get(evidenceId);
+      if (!current) return undefined;
+      const updated = patchDraftFieldEvidence(current, patch, audit);
+      fieldEvidenceStore.set(evidenceId, updated);
+      return updated;
+    }),
+    moderateFieldEvidence: vi.fn(async (evidenceId, moderation) => {
+      const current = fieldEvidenceStore.get(evidenceId);
+      if (!current) return undefined;
+      const updated = moderateFieldEvidence(current, moderation);
+      fieldEvidenceStore.set(evidenceId, updated);
+      return updated;
+    }),
     getDemoDashboard: vi.fn(async () => ({
       scenarios: [
         {
@@ -146,8 +180,15 @@ async function createServer(
       ],
     })),
   };
+  const attachmentStorageProvider = createMemoryAttachmentStorageProvider();
+  await attachmentStorageProvider.put({
+    reference: fieldEvidence.attachments![0]!,
+    data: new Uint8Array([1, 2, 3, 4]),
+  });
   const server = await (candidate as ServerFactory)({
     services,
+    attachmentStorageProvider,
+    clock: () => '2026-09-09T01:00:00.000Z',
     logger: false,
     ...serverOptions,
   });
@@ -177,7 +218,7 @@ const validCheckRequest = {
     capabilities: [],
   },
   evidenceSnapshot: {},
-};
+} as const;
 
 describe('Fastify reference API', () => {
   test('reports health and canonical schema version', async () => {
@@ -299,7 +340,7 @@ describe('Fastify reference API', () => {
     expect(profiles.json()).toEqual([validCheckRequest.policyProfile]);
   });
 
-  test('requires separate write and approve authorization actions', async () => {
+  test('enforces draft-only writes and separate moderation authorization', async () => {
     const createAuthorizationProvider = (
       httpServer as Readonly<Record<string, unknown>>
     ).createMemoryAuthorizationProvider as (grants: readonly unknown[]) => unknown;
@@ -307,19 +348,17 @@ describe('Fastify reference API', () => {
       {
         credential: 'Bearer staff-token',
         principalId: 'staff-1',
-        actions: ['FIELD_EVIDENCE_WRITE'],
+        actions: ['FIELD_EVIDENCE_WRITE', 'FIELD_EVIDENCE_READ_STAFF'],
       },
       {
         credential: 'Bearer admin-token',
         principalId: 'admin-1',
-        actions: ['FIELD_EVIDENCE_WRITE', 'FIELD_EVIDENCE_APPROVE'],
+        actions: ['FIELD_EVIDENCE_WRITE', 'FIELD_EVIDENCE_MODERATE'],
       },
     ]);
     const { server } = await createServer({ authorizationProvider });
     const createPayload = {
-      schemaVersion: '2.0.0',
       evidenceId: 'field-1',
-      status: 'DRAFT',
       visibility: 'STAFF_ONLY',
       redaction: 'ANONYMIZED',
       outcome: 'ASSEMBLY_FAILURE',
@@ -336,12 +375,6 @@ describe('Fastify reference API', () => {
       url: '/v1/field-evidence',
       payload: createPayload,
     });
-    const cannotSelfApprove = await server.inject({
-      method: 'POST',
-      url: '/v1/field-evidence',
-      headers: { authorization: 'Bearer staff-token' },
-      payload: { ...createPayload, status: 'APPROVED' },
-    });
     const created = await server.inject({
       method: 'POST',
       url: '/v1/field-evidence',
@@ -352,19 +385,139 @@ describe('Fastify reference API', () => {
       method: 'POST',
       url: '/v1/field-evidence/field-1/approve',
       headers: { authorization: 'Bearer staff-token' },
+      payload: {},
     });
     const approved = await server.inject({
       method: 'POST',
       url: '/v1/field-evidence/field-1/approve',
       headers: { authorization: 'Bearer admin-token' },
+      payload: {},
+    });
+    const immutablePatch = await server.inject({
+      method: 'PATCH',
+      url: '/v1/field-evidence/field-1',
+      headers: { authorization: 'Bearer staff-token' },
+      payload: {
+        outcome: 'ASSEMBLY_SUCCESS',
+        parts: [
+          { category: 'CPU', partId: '22222222-2222-4222-8222-222222222222' },
+        ],
+        installationContext: { schemaVersion: '2.0.0' },
+      },
+    });
+    const repeatApproval = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/field-1/approve',
+      headers: { authorization: 'Bearer admin-token' },
+      payload: {},
     });
 
     expect(unauthenticated.statusCode).toBe(401);
-    expect(cannotSelfApprove.statusCode).toBe(400);
     expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({
+      status: 'DRAFT',
+      createdByPrincipalId: 'staff-1',
+      createdAt: '2026-09-09T01:00:00.000Z',
+    });
     expect(forbidden.statusCode).toBe(403);
     expect(approved.statusCode).toBe(200);
-    expect(approved.json()).toMatchObject({ status: 'APPROVED' });
+    expect(approved.json()).toMatchObject({
+      status: 'APPROVED',
+      moderatedByPrincipalId: 'admin-1',
+      moderatedAt: '2026-09-09T01:00:00.000Z',
+    });
+    expect(immutablePatch.statusCode).toBe(409);
+    expect(repeatApproval.statusCode).toBe(409);
+    expect((await server.inject({
+      method: 'GET',
+      url: '/v1/evidence/field-1',
+      headers: { authorization: 'Bearer staff-token' },
+    })).json()).toMatchObject({
+      outcome: 'ASSEMBLY_FAILURE',
+      parts: createPayload.parts,
+      installationContext: createPayload.installationContext,
+    });
+  });
+
+  test('rejects a draft and prevents patch or direct rejected-to-approved promotion', async () => {
+    const createAuthorizationProvider = (
+      httpServer as Readonly<Record<string, unknown>>
+    ).createMemoryAuthorizationProvider as (grants: readonly unknown[]) => unknown;
+    const authorizationProvider = createAuthorizationProvider([
+      {
+        credential: 'Bearer writer-token',
+        principalId: 'writer-1',
+        actions: ['FIELD_EVIDENCE_WRITE'],
+      },
+      {
+        credential: 'Bearer admin-token',
+        principalId: 'admin-1',
+        actions: ['FIELD_EVIDENCE_MODERATE'],
+      },
+    ]);
+    const { server } = await createServer({ authorizationProvider });
+    const rejected = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/field-1/reject',
+      headers: { authorization: 'Bearer admin-token' },
+      payload: { reason: '사진으로 부품을 확인할 수 없습니다.' },
+    });
+    const patch = await server.inject({
+      method: 'PATCH',
+      url: '/v1/field-evidence/field-1',
+      headers: { authorization: 'Bearer writer-token' },
+      payload: { redaction: 'NONE' },
+    });
+    const approve = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/field-1/approve',
+      headers: { authorization: 'Bearer admin-token' },
+      payload: {},
+    });
+
+    expect(rejected.statusCode).toBe(200);
+    expect(rejected.json()).toMatchObject({
+      status: 'REJECTED',
+      moderationReason: '사진으로 부품을 확인할 수 없습니다.',
+      moderatedByPrincipalId: 'admin-1',
+    });
+    expect(patch.statusCode).toBe(409);
+    expect(approve.statusCode).toBe(409);
+  });
+
+  test('serves linked attachments through the evidence visibility boundary', async () => {
+    const createAuthorizationProvider = (
+      httpServer as Readonly<Record<string, unknown>>
+    ).createMemoryAuthorizationProvider as (grants: readonly unknown[]) => unknown;
+    const authorizationProvider = createAuthorizationProvider([
+      {
+        credential: 'Bearer reader-token',
+        principalId: 'reader-1',
+        actions: ['FIELD_EVIDENCE_READ_STAFF'],
+      },
+    ]);
+    const { server } = await createServer({ authorizationProvider });
+    const publicAttachment = await server.inject({
+      method: 'GET',
+      url: '/v1/field-evidence/field-1/attachments/demo-photo-1',
+    });
+    const denied = await server.inject({
+      method: 'GET',
+      url: '/v1/field-evidence/staff-only/attachments/demo-photo-1',
+    });
+    const allowed = await server.inject({
+      method: 'GET',
+      url: '/v1/field-evidence/staff-only/attachments/demo-photo-1',
+      headers: { authorization: 'Bearer reader-token' },
+    });
+
+    expect(publicAttachment.statusCode).toBe(200);
+    expect(publicAttachment.json()).toMatchObject({
+      reference: { attachmentId: 'demo-photo-1', mediaType: 'image/png' },
+      contentBase64: 'AQIDBA==',
+    });
+    expect(denied.statusCode).toBe(401);
+    expect(allowed.statusCode).toBe(200);
   });
 
   test('maps staff-only evidence reads through the authorization provider', async () => {
@@ -439,6 +592,8 @@ describe('Fastify reference API', () => {
         '/v1/field-evidence': expect.any(Object),
         '/v1/field-evidence/{id}': expect.any(Object),
         '/v1/field-evidence/{id}/approve': expect.any(Object),
+        '/v1/field-evidence/{id}/reject': expect.any(Object),
+        '/v1/field-evidence/{id}/attachments/{attachmentId}': expect.any(Object),
         '/v1/demo': expect.any(Object),
       },
     });

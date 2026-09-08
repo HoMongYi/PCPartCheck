@@ -66,7 +66,7 @@ function fieldRecord(
   } = {},
 ): FieldEvidenceRecord {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     evidenceId,
     status: options.status ?? 'APPROVED',
     visibility: 'PUBLIC',
@@ -101,6 +101,11 @@ function fieldRecord(
       },
     ],
     reportedAt: '2026-09-08T00:00:00.000Z',
+    createdByPrincipalId: 'fixture-writer',
+    createdAt: '2026-09-08T00:00:00.000Z',
+    updatedAt: '2026-09-08T00:00:00.000Z',
+    moderatedByPrincipalId: 'fixture-moderator',
+    moderatedAt: '2026-09-08T00:00:00.000Z',
   };
 }
 

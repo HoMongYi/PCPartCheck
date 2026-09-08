@@ -13,13 +13,21 @@ import {
   type ResultSnapshot,
 } from '@pcpartcheck/core';
 import {
+  AttachmentReferenceSchema,
+  FieldEvidenceDraftInputSchema,
   FieldEvidenceConditionSchema,
   FieldEvidenceIssueTypeSchema,
   FieldEvidencePartReferenceSchema,
-  FieldEvidenceRecordSchema,
+  FieldEvidencePatchSchema as EvidenceFieldEvidencePatchSchema,
+  FieldEvidenceRecordTransportSchema,
   FieldEvidenceRedactionSchema,
   FieldEvidenceVisibilitySchema,
   FieldMeasurementSchema,
+  type AttachmentStorageProvider,
+  type FieldEvidenceDraftInput,
+  type FieldEvidenceModeration,
+  type FieldEvidenceMutationAudit,
+  type FieldEvidencePatch as EvidenceFieldEvidencePatch,
   type FieldEvidenceRecord,
   type RawFieldEvidence,
 } from '@pcpartcheck/evidence';
@@ -29,7 +37,7 @@ import type {
 } from '@pcpartcheck/similarity';
 import { Type, type Static } from '@sinclair/typebox';
 
-export { FieldEvidenceRecordSchema } from '@pcpartcheck/evidence';
+export const FieldEvidenceRecordSchema = FieldEvidenceRecordTransportSchema;
 export type { FieldEvidenceRecord } from '@pcpartcheck/evidence';
 
 export const HealthResponseSchema = Type.Object(
@@ -368,23 +376,36 @@ export type CapabilityResponseItem = Static<typeof CapabilityResponseItemSchema>
 export const ProfilesResponseSchema = Type.Array(ApiPolicyProfileSchema);
 export type ProfilesResponse = readonly PolicyProfile[];
 
-export const FieldEvidencePatchSchema = Type.Object(
-  {
-    visibility: Type.Optional(FieldEvidenceVisibilitySchema),
-    redaction: Type.Optional(FieldEvidenceRedactionSchema),
-    outcome: Type.Optional(Type.Union([
-      Type.Literal('ASSEMBLY_SUCCESS'),
-      Type.Literal('ASSEMBLY_FAILURE'),
-    ])),
-    issueType: Type.Optional(FieldEvidenceIssueTypeSchema),
-    parts: Type.Optional(Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 })),
-    installationContext: Type.Optional(ApiInstallationContextSchema),
-    measurements: Type.Optional(Type.Array(FieldMeasurementSchema)),
-    conditions: Type.Optional(Type.Array(FieldEvidenceConditionSchema)),
-  },
-  { additionalProperties: false, minProperties: 1 },
+export const FieldEvidenceCreateRequestSchema = FieldEvidenceDraftInputSchema;
+export type FieldEvidenceCreateRequest = FieldEvidenceDraftInput;
+
+export const FieldEvidencePatchSchema = EvidenceFieldEvidencePatchSchema;
+export type FieldEvidencePatch = EvidenceFieldEvidencePatch;
+
+export const FieldEvidenceModerationRequestSchema = Type.Object(
+  { reason: Type.Optional(Type.String({ minLength: 1 })) },
+  { additionalProperties: false },
 );
-export type FieldEvidencePatch = Static<typeof FieldEvidencePatchSchema>;
+export type FieldEvidenceModerationRequest = Static<
+  typeof FieldEvidenceModerationRequestSchema
+>;
+
+export const AttachmentParamsSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1 }),
+    attachmentId: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+export type AttachmentParams = Static<typeof AttachmentParamsSchema>;
+
+export const AttachmentReadResponseSchema = Type.Object(
+  {
+    reference: AttachmentReferenceSchema,
+    contentBase64: Type.String(),
+  },
+  { additionalProperties: false },
+);
 
 export const ApiErrorResponseSchema = Type.Object(
   {
@@ -450,6 +471,7 @@ export const DemoDashboardResponseSchema = Type.Object(
         outcome: Type.Union([
           Type.Literal('ASSEMBLY_SUCCESS'),
           Type.Literal('ASSEMBLY_FAILURE'),
+          Type.Literal('CONDITIONAL_SUCCESS'),
         ]),
         match: Type.Literal('EXACT'),
         resultStatus: CompatibilityStatusSchema,
@@ -466,18 +488,25 @@ export type AuthorizationAction =
   | 'FIELD_EVIDENCE_READ_STAFF'
   | 'FIELD_EVIDENCE_READ_ADMIN'
   | 'FIELD_EVIDENCE_WRITE'
-  | 'FIELD_EVIDENCE_APPROVE';
+  | 'FIELD_EVIDENCE_MODERATE';
 
 export interface AuthorizationRequest {
   readonly credential?: string;
   readonly action: AuthorizationAction;
 }
 
-export interface AuthorizationDecision {
-  readonly authenticated: boolean;
-  readonly allowed: boolean;
-  readonly principalId?: string;
-}
+export type AuthorizationDecision =
+  | { readonly authenticated: false; readonly allowed: false }
+  | {
+      readonly authenticated: true;
+      readonly allowed: false;
+      readonly principalId: string;
+    }
+  | {
+      readonly authenticated: true;
+      readonly allowed: true;
+      readonly principalId: string;
+    };
 
 export interface AuthorizationProvider {
   authorize(request: AuthorizationRequest): Promise<AuthorizationDecision>;
@@ -508,11 +537,20 @@ export interface PcPartCheckApiServices {
   findSimilarEvidence(query: SimilarEvidenceLookup): Promise<SimilarEvidenceResponse>;
   listCapabilities(): Promise<readonly CapabilityResponseItem[]>;
   listProfiles(): Promise<ProfilesResponse>;
-  createFieldEvidence(record: FieldEvidenceRecord): Promise<FieldEvidenceRecord>;
+  createFieldEvidence(
+    input: FieldEvidenceCreateRequest,
+    audit: FieldEvidenceMutationAudit,
+  ): Promise<FieldEvidenceRecord>;
   patchFieldEvidence(
     evidenceId: string,
     patch: FieldEvidencePatch,
+    audit: FieldEvidenceMutationAudit,
   ): Promise<FieldEvidenceRecord | undefined>;
-  approveFieldEvidence(evidenceId: string): Promise<FieldEvidenceRecord | undefined>;
+  moderateFieldEvidence(
+    evidenceId: string,
+    moderation: FieldEvidenceModeration,
+  ): Promise<FieldEvidenceRecord | undefined>;
   getDemoDashboard(): Promise<DemoDashboardResponse>;
 }
+
+export type { AttachmentStorageProvider };

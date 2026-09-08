@@ -57,7 +57,7 @@ function record(
   overrides: Readonly<Record<string, unknown>> = {},
 ): Readonly<Record<string, unknown>> {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     evidenceId: 'field-1',
     status: 'APPROVED',
     visibility: 'PUBLIC',
@@ -67,6 +67,11 @@ function record(
     parts,
     installationContext,
     reportedAt: '2026-09-08T00:00:00.000Z',
+    createdByPrincipalId: 'reporter-1',
+    createdAt: '2026-09-08T00:00:00.000Z',
+    updatedAt: '2026-09-08T00:00:00.000Z',
+    moderatedByPrincipalId: 'moderator-1',
+    moderatedAt: '2026-09-08T01:00:00.000Z',
     ...overrides,
   };
 }
@@ -82,7 +87,7 @@ describe('Field Evidence public contract', () => {
   test('requires versioned access visibility and redaction fields', () => {
     const schema = exportedFunction<TSchema>('FieldEvidenceRecordSchema');
     const current = record({
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       visibility: 'STAFF_ONLY',
       redaction: 'ANONYMIZED',
     });
@@ -136,12 +141,13 @@ describe('applyExactFieldEvidence', () => {
     });
   });
 
-  test('uses conditional when the exact failure has explicit resolution conditions', () => {
+  test('uses conditional for an exact conditional success', () => {
     const apply = exportedFunction<EvidenceApplier>('applyExactFieldEvidence');
     const result = apply(
       unknownBase,
       [
         record({
+          outcome: 'CONDITIONAL_SUCCESS',
           conditions: [
             {
               code: 'REMOVE_FRONT_RADIATOR',
@@ -204,6 +210,7 @@ describe('applyExactFieldEvidence', () => {
         record({ evidenceId: 'success', outcome: 'ASSEMBLY_SUCCESS' }),
         record({
           evidenceId: 'conditional',
+          outcome: 'CONDITIONAL_SUCCESS',
           conditions: [{ code: 'CHANGE_LAYOUT', message: 'Change the installation layout' }],
         }),
         record({ evidenceId: 'hard-failure' }),

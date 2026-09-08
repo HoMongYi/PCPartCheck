@@ -152,7 +152,7 @@ describe('SQLite repositories', () => {
       rawUnit: 'cm',
     };
     const fieldEvidence: FieldEvidenceRecord = {
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       evidenceId: 'field-clearance',
       status: 'APPROVED',
       visibility: 'PUBLIC',
@@ -170,6 +170,11 @@ describe('SQLite repositories', () => {
         },
       ],
       reportedAt: '2026-09-08T00:00:00.000Z',
+      createdByPrincipalId: 'fixture-writer',
+      createdAt: '2026-09-08T00:00:00.000Z',
+      updatedAt: '2026-09-08T00:00:00.000Z',
+      moderatedByPrincipalId: 'fixture-moderator',
+      moderatedAt: '2026-09-08T00:00:00.000Z',
     };
 
     store.putRawEvidence(rawEvidence);
