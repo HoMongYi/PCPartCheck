@@ -418,6 +418,12 @@ describe('Fastify reference API', () => {
       headers: { authorization: 'Bearer staff-token' },
       payload: createPayload,
     });
+    const draftPatch = await server.inject({
+      method: 'PATCH',
+      url: '/v1/field-evidence/field-1',
+      headers: { authorization: 'Bearer staff-token' },
+      payload: { redaction: 'NONE' },
+    });
     const forbidden = await server.inject({
       method: 'POST',
       url: '/v1/field-evidence/field-1/approve',
@@ -428,7 +434,6 @@ describe('Fastify reference API', () => {
       method: 'POST',
       url: '/v1/field-evidence/field-1/approve',
       headers: { authorization: 'Bearer admin-token' },
-      payload: {},
     });
     const immutablePatch = await server.inject({
       method: 'PATCH',
@@ -455,6 +460,12 @@ describe('Fastify reference API', () => {
       status: 'DRAFT',
       createdByPrincipalId: 'staff-1',
       createdAt: '2026-09-09T01:00:00.000Z',
+    });
+    expect(draftPatch.statusCode).toBe(200);
+    expect(draftPatch.json()).toMatchObject({
+      status: 'DRAFT',
+      redaction: 'NONE',
+      updatedAt: '2026-09-09T01:00:00.000Z',
     });
     expect(forbidden.statusCode).toBe(403);
     expect(approved.statusCode).toBe(200);
@@ -634,6 +645,10 @@ describe('Fastify reference API', () => {
         '/v1/demo': expect.any(Object),
       },
     });
+    expect(
+      (openapi.json() as { paths: Record<string, Record<string, unknown>> })
+        .paths['/v1/field-evidence/similar'],
+    ).toHaveProperty('post');
     expect(docs.statusCode).toBe(200);
   });
 

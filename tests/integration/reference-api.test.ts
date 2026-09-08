@@ -100,10 +100,19 @@ describe('reference API composition', () => {
     );
 
     expect(profiles[0]?.profileId).toBe('reference-default');
-    expect(modes.get('socket')).toBe('REQUIRED');
-    expect(modes.get('gpu-clearance')).toBe('REQUIRED');
-    expect(modes.get('pcie-bandwidth')).toBe('ADVISORY');
-    expect(modes.get('rgb')).toBe('ADVISORY');
+    for (const capabilityId of [
+      'socket', 'memory-generation', 'memory-capacity', 'form-factor',
+      'gpu-clearance', 'cooler-clearance', 'psu-clearance', 'radiator',
+      'cooler-socket', 'storage', 'storage-sharing', 'pcie-slot',
+      'power-budget', 'psu-connector',
+    ]) {
+      expect(modes.get(capabilityId)).toBe('REQUIRED');
+    }
+    for (const capabilityId of [
+      'pcie-bandwidth', 'fan-headers', 'rgb', 'memory-rate', 'four-dimm-rate',
+    ]) {
+      expect(modes.get(capabilityId)).toBe('ADVISORY');
+    }
     for (const capabilityId of [
       'manufacturer-specification', 'cpu-support', 'bios', 'qvl',
     ]) {

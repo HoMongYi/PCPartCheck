@@ -84,7 +84,7 @@ export function CompatibilityDashboard({
         <div className="brand-lockup">
           <span className="brand-index">PCC / 01</span>
           <span className="brand-rule" aria-hidden="true" />
-          <span className="schema-chip">CANONICAL 2.0.0</span>
+          <span className="schema-chip">CANONICAL 3.0.0</span>
         </div>
         <a className="api-link" href={apiDocsUrl}>
           API 문서 <span aria-hidden="true">↗</span>

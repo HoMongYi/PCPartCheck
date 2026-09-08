@@ -40,6 +40,7 @@ import {
   type RateLimitProvider,
   type SimilarEvidenceLookup,
 } from '@pcpartcheck/api-contracts';
+import { Value } from '@sinclair/typebox/value';
 import Fastify, {
   type FastifyInstance,
   type FastifyReply,
@@ -358,6 +359,14 @@ export async function buildHttpServer(
     reply: FastifyReply,
     action: 'APPROVE' | 'REJECT',
   ) {
+    if (
+      request.body !== undefined &&
+      !Value.Check(FieldEvidenceModerationRequestSchema, request.body)
+    ) {
+      return reply.code(400).send(
+        error('INVALID_MODERATION_REQUEST', 'Moderation body is invalid'),
+      );
+    }
     const authorized = await authorize(
       authorizationProvider,
       request,
@@ -394,7 +403,6 @@ export async function buildHttpServer(
   const moderationSchema = {
     tags: ['evidence'],
     params: IdParamsSchema,
-    body: FieldEvidenceModerationRequestSchema,
     response: { 200: FieldEvidenceRecordSchema, ...commonErrors, 409: ApiErrorResponseSchema },
   } as const;
 

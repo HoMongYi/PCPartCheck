@@ -16,6 +16,7 @@ test('shows real engine scenarios and keeps similar failures informational', asy
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'PCPartCheck' })).toBeVisible();
+  await expect(page.getByText('CANONICAL 3.0.0')).toBeVisible();
   await expect(page.getByTestId('scenario-card')).toHaveCount(8);
   await expect(page.getByText('Status는 기술 판정')).toBeVisible();
   await expect(page.getByText('Power Budget 기준값')).toBeVisible();

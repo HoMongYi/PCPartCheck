@@ -22,6 +22,8 @@ export function isM2KeyCompatible(
   deviceKey: M2DeviceKey,
   slotKey: M2SlotKey,
 ): boolean {
+  // A B+M device can fit either keyed socket; protocol support is checked
+  // separately so mechanical fit never implies SATA/NVMe compatibility.
   if (slotKey === 'E') return false;
   if (deviceKey === 'B_M') return true;
   if (slotKey === 'B_M') return true;
