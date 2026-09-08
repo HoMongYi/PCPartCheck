@@ -1,7 +1,12 @@
 import type {
   CanonicalPart,
+  JsonValue,
   MemoryTechnology,
+  MotherboardFormFactor,
   PartId,
+  PowerConnectorRequirement,
+  PowerConnectorSpec,
+  PsuFormFactor,
 } from '@pcpartcheck/core';
 import {
   IDENTITY_MAPPER_VERSION,
@@ -119,6 +124,390 @@ function unitAudit(
       mappingRule: normalized.audit.ruleId,
       mapperVersion: BUILDCORES_MAPPER_VERSION,
     },
+  };
+}
+
+function directAudit(
+  sourcePath: string,
+  targetPath: string,
+  rawValue: JsonValue,
+  canonicalValue: JsonValue,
+): ProviderFieldAudit {
+  return {
+    sourcePath,
+    targetPath,
+    rawValue,
+    canonicalValue,
+    mappingKind: 'DIRECT',
+    mappingRule: 'BUILDCORES_DIRECT_FIELD',
+    mapperVersion: BUILDCORES_MAPPER_VERSION,
+  };
+}
+
+function motherboardFormFactor(value: unknown): MotherboardFormFactor | undefined {
+  switch (nonEmptyString(value)?.toLocaleLowerCase('en-US').replaceAll(/[^a-z]/gu, '')) {
+    case 'eatx': return 'E_ATX';
+    case 'atx': return 'ATX';
+    case 'microatx': return 'MICRO_ATX';
+    case 'miniitx': return 'MINI_ITX';
+    default: return undefined;
+  }
+}
+
+function psuFormFactor(value: unknown): PsuFormFactor | undefined {
+  switch (nonEmptyString(value)?.toLocaleUpperCase('en-US').replaceAll(/[^A-Z]/gu, '')) {
+    case 'ATX': return 'ATX';
+    case 'SFX': return 'SFX';
+    case 'SFXL': return 'SFX_L';
+    case 'TFX': return 'TFX';
+    case 'FLEXATX': return 'FLEX_ATX';
+    default: return undefined;
+  }
+}
+
+function pcieInterface(value: unknown):
+  | { readonly generation?: number; readonly lanes: number }
+  | undefined {
+  const text = nonEmptyString(value);
+  if (!text) return undefined;
+  const lanes = /x(1|2|4|8|16)\b/iu.exec(text)?.[1];
+  if (!lanes) return undefined;
+  const generation = /PCIe\s+(\d+)(?:\.\d+)?/iu.exec(text)?.[1];
+  return {
+    lanes: Number(lanes),
+    ...(generation ? { generation: Number(generation) } : {}),
+  };
+}
+
+function connectorRequirements(
+  value: unknown,
+): PowerConnectorRequirement[] {
+  const connectors = object(value);
+  if (!connectors) return [];
+  const mappings = [
+    ['pcie_6_pin', 'PCIE_6_PIN'],
+    ['pcie_8_pin', 'PCIE_8_PIN'],
+    ['pcie_12VHPWR', 'PCIE_12VHPWR'],
+    ['pcie_12V_2x6', 'PCIE_12V_2X6'],
+  ] as const;
+  return mappings.flatMap(([source, type]) => {
+    const count = positiveInteger(connectors[source]);
+    return count ? [{ type, count, mode: 'REQUIRED' as const }] : [];
+  });
+}
+
+function suppliedConnectors(value: unknown): PowerConnectorSpec[] {
+  const connectors = object(value);
+  if (!connectors) return [];
+  const mappings = [
+    ['atx_24_pin', 'ATX_24_PIN'],
+    ['eps_8_pin', 'EPS_8_PIN'],
+    ['pcie_12vhpwr', 'PCIE_12VHPWR'],
+    ['pcie_6_plus_2_pin', 'PCIE_8_PIN'],
+    ['sata', 'SATA_POWER'],
+    ['molex_4_pin', 'MOLEX_4_PIN'],
+  ] as const;
+  return mappings.flatMap(([source, type]) => {
+    const count = positiveInteger(connectors[source]);
+    return count ? [{ type, count }] : [];
+  });
+}
+
+function mapMotherboard(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart | undefined {
+  const socket = nonEmptyString(data.socket);
+  const formFactor = motherboardFormFactor(data.form_factor);
+  const memory = object(data.memory);
+  const technology = memoryTechnology(memory?.ram_type);
+  if (!socket || !formFactor || !technology) return undefined;
+  const audit: ProviderFieldAudit[] = [
+    directAudit('socket', 'spec.socket', socket, socket),
+    directAudit('form_factor', 'spec.formFactor', data.form_factor as JsonValue, formFactor),
+    directAudit('memory.ram_type', 'spec.memoryTechnologies', technology, [technology]),
+  ];
+  const maxMemoryGb = positiveInteger(memory?.max);
+  const memorySlots = positiveInteger(memory?.slots);
+  const chipset = nonEmptyString(data.chipset);
+  const rgb = object(data.rgb_headers);
+  const rgbHeaders = [
+    { source: 'argb_5v', type: 'ARGB_5V_3_PIN' as const },
+    { source: 'rgb_12v', type: 'RGB_12V_4_PIN' as const },
+  ].flatMap(({ source, type }) => {
+    const count = positiveInteger(rgb?.[source]);
+    return count ? [{ type, count }] : [];
+  });
+  const usb = object(data.usb_headers);
+  const usbHeaders = [
+    { source: 'usb_2_0', type: 'USB_2_0' as const },
+    { source: 'usb_3_2_gen_1', type: 'USB_3_2_GEN1' as const },
+    { source: 'usb_3_2_gen_2', type: 'USB_3_2_GEN2_TYPE_E' as const },
+    { source: 'usb_4', type: 'USB4' as const },
+  ].flatMap(({ source, type }) => {
+    const count = positiveInteger(usb?.[source]);
+    return count ? [{ type, count }] : [];
+  });
+  const m2Slots = Array.isArray(data.m2_slots)
+    ? data.m2_slots.flatMap((value, index) => {
+        const slot = object(value);
+        const key = slot?.key === 'M' || slot?.key === 'B' || slot?.key === 'E'
+          ? slot.key
+          : slot?.key === 'B+M' || slot?.key === 'B/M'
+            ? 'B_M'
+            : undefined;
+        const formFactors = nonEmptyString(slot?.size)
+          ?.match(/2230|2242|2260|2280|22110/gu)
+          ?.map(Number)
+          .filter((size): size is 2230 | 2242 | 2260 | 2280 | 22110 =>
+            [2230, 2242, 2260, 2280, 22110].includes(size),
+          ) ?? [];
+        const sourceInterface = nonEmptyString(slot?.interface);
+        const interfaces = [
+          ...(sourceInterface?.toLocaleLowerCase('en-US').includes('pcie')
+            ? ['PCIE_NVME' as const]
+            : []),
+          ...(sourceInterface?.toLocaleLowerCase('en-US').includes('sata')
+            ? ['SATA' as const]
+            : []),
+        ];
+        if (!key || formFactors.length === 0 || interfaces.length === 0) return [];
+        const pcie = pcieInterface(sourceInterface);
+        return [{
+          slotId: `M2_${index + 1}`,
+          key,
+          formFactors: [...new Set(formFactors)],
+          interfaces,
+          ...(pcie?.generation ? { pcieGen: pcie.generation } : {}),
+          ...(pcie?.lanes ? { lanes: pcie.lanes } : {}),
+        }];
+      })
+    : [];
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  return {
+    category: 'MOTHERBOARD',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: {
+      socket,
+      formFactor,
+      memoryTechnologies: [technology],
+      ...(chipset ? { chipset } : {}),
+      ...(memorySlots ? { memorySlots } : {}),
+      ...(maxMemoryGb ? { maxMemoryGb } : {}),
+      ...(rgbHeaders.length ? { rgbHeaders } : {}),
+      ...(usbHeaders.length ? { usbHeaders } : {}),
+      ...(m2Slots.length ? { m2Slots } : {}),
+    },
+    criticalSpecs: { socket, formFactor, technology },
+    audit,
+  };
+}
+
+function mapGpu(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart {
+  const audit: ProviderFieldAudit[] = [];
+  const length = positiveNumber(data.length);
+  const normalizedLength = length === undefined
+    ? undefined
+    : unitAudit('length', 'spec.lengthMm', length, 'mm');
+  if (normalizedLength) audit.push(normalizedLength.audit);
+  const slotWidth = positiveNumber(data.total_slot_width);
+  const link = pcieInterface(data.interface);
+  const requirements = connectorRequirements(data.power_connectors);
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  return {
+    category: 'GPU',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: {
+      ...(normalizedLength ? { lengthMm: normalizedLength.value } : {}),
+      ...(slotWidth ? { slotWidth } : {}),
+      ...(link?.generation ? { pcieGeneration: link.generation } : {}),
+      ...(link ? { maxLinkWidthLanes: link.lanes } : {}),
+      ...(requirements.length ? { powerConnectorRequirements: requirements } : {}),
+    },
+    criticalSpecs: {
+      ...(nonEmptyString(data.chipset) ? { chipset: nonEmptyString(data.chipset)! } : {}),
+      ...(length ? { lengthMm: length } : {}),
+    },
+    audit,
+  };
+}
+
+function mapCpuCooler(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart | undefined {
+  const sockets = Array.isArray(data.cpu_sockets)
+    ? data.cpu_sockets.flatMap((value) => {
+        const socket = nonEmptyString(value);
+        return socket ? [socket] : [];
+      })
+    : [];
+  const waterCooled = typeof data.water_cooled === 'boolean'
+    ? data.water_cooled
+    : undefined;
+  const radiatorSizeMm = positiveInteger(data.radiator_size);
+  const coolerType = waterCooled === false
+    ? 'AIR'
+    : waterCooled === true && radiatorSizeMm
+      ? 'AIO'
+      : undefined;
+  if (!coolerType || sockets.length === 0) return undefined;
+  const height = positiveNumber(data.height);
+  const normalizedHeight = height === undefined
+    ? undefined
+    : unitAudit('height', 'spec.heightMm', height, 'mm');
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  return {
+    category: 'CPU_COOLER',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: {
+      coolerType,
+      supportedSockets: sockets,
+      ...(normalizedHeight ? { heightMm: normalizedHeight.value } : {}),
+      ...(radiatorSizeMm ? { radiatorSizeMm } : {}),
+    },
+    criticalSpecs: { coolerType, supportedSockets: sockets.join('|') },
+    audit: normalizedHeight ? [normalizedHeight.audit] : [],
+  };
+}
+
+function mapPcCase(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart | undefined {
+  const supportedMotherboardFormFactors = Array.isArray(
+    data.supported_motherboard_form_factors,
+  )
+    ? data.supported_motherboard_form_factors.flatMap((value) => {
+        const formFactor = motherboardFormFactor(value);
+        return formFactor ? [formFactor] : [];
+      })
+    : [];
+  if (supportedMotherboardFormFactors.length === 0) return undefined;
+  const supportedPsuFormFactors = Array.isArray(
+    data.supported_power_supply_form_factors,
+  )
+    ? data.supported_power_supply_form_factors.flatMap((value) => {
+        const formFactor = psuFormFactor(value);
+        return formFactor ? [formFactor] : [];
+      })
+    : [];
+  const measurementMappings = [
+    ['max_video_card_length', 'maxGpuLengthMm'],
+    ['max_cpu_cooler_height', 'maxCpuCoolerHeightMm'],
+    ['max_psu_length', 'maxPsuLengthMm'],
+  ] as const;
+  const measurements = Object.fromEntries(
+    measurementMappings.flatMap(([source, target]) => {
+      const value = positiveNumber(data[source]);
+      return value ? [[target, value]] : [];
+    }),
+  );
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  const pcieSlotCount = positiveInteger(data.expansion_slots);
+  return {
+    category: 'PC_CASE',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: {
+      supportedMotherboardFormFactors: [...new Set(supportedMotherboardFormFactors)],
+      ...(supportedPsuFormFactors.length
+        ? { supportedPsuFormFactors: [...new Set(supportedPsuFormFactors)] }
+        : {}),
+      ...measurements,
+      ...(pcieSlotCount ? { pcieSlotCount } : {}),
+    },
+    criticalSpecs: {
+      supportedMotherboardFormFactors: supportedMotherboardFormFactors.join('|'),
+    },
+    audit: measurementMappings.flatMap(([source, target]) => {
+      const value = positiveNumber(data[source]);
+      return value ? [unitAudit(source, `spec.${target}`, value, 'mm').audit] : [];
+    }),
+  };
+}
+
+function mapPsu(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart | undefined {
+  const formFactor = psuFormFactor(data.form_factor);
+  const wattage = positiveNumber(data.wattage);
+  if (!formFactor || !wattage) return undefined;
+  const ratedPower = unitAudit('wattage', 'spec.ratedPowerW', wattage, 'W');
+  const length = positiveNumber(data.length);
+  const normalizedLength = length === undefined
+    ? undefined
+    : unitAudit('length', 'spec.lengthMm', length, 'mm');
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  return {
+    category: 'PSU',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: {
+      formFactor,
+      ratedPowerW: ratedPower.value,
+      powerConnectors: suppliedConnectors(data.connectors),
+      ...(normalizedLength ? { lengthMm: normalizedLength.value } : {}),
+    },
+    criticalSpecs: { formFactor, ratedPowerW: ratedPower.value },
+    audit: [ratedPower.audit, ...(normalizedLength ? [normalizedLength.audit] : [])],
+  };
+}
+
+function mapStorage(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart | undefined {
+  const capacityGb = positiveNumber(data.capacity);
+  const sourceType = nonEmptyString(data.storage_type)?.toLocaleUpperCase('en-US');
+  const sourceInterface = nonEmptyString(data.interface)?.toLocaleUpperCase('en-US');
+  if (!capacityGb || !sourceType || !sourceInterface) return undefined;
+  const isNvme = data.nvme === true || sourceInterface.includes('PCIE');
+  const isSata = sourceInterface.includes('SATA');
+  const storageType = sourceType === 'HDD' && isSata
+    ? 'HDD'
+    : sourceType === 'SSD' && isNvme
+      ? 'NVME_SSD'
+      : sourceType === 'SSD' && isSata
+        ? 'SATA_SSD'
+        : undefined;
+  const canonicalInterface = isNvme ? 'PCIE_NVME' : isSata ? 'SATA' : undefined;
+  if (!storageType || !canonicalInterface) return undefined;
+  const formFactor = /M\.2[- ]?(2230|2242|2260|2280|22110)/iu.exec(
+    nonEmptyString(data.form_factor) ?? '',
+  )?.[1];
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  return {
+    category: 'STORAGE',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: {
+      storageType,
+      capacityGb,
+      interface: canonicalInterface,
+      ...(formFactor ? { m2FormFactor: Number(formFactor) as 2230 | 2242 | 2260 | 2280 | 22110 } : {}),
+    },
+    criticalSpecs: { storageType, capacityGb, interface: canonicalInterface },
+    audit: [],
   };
 }
 
@@ -240,16 +629,29 @@ function mapRecord(record: BuildCoresSnapshotRecord):
   | { readonly status: 'SKIPPED'; readonly reason: string }
   | { readonly status: 'MAPPED'; readonly value: MappedBuildCoresPart; readonly externalId: string } {
   if (record.parseError) return { status: 'FAILED', reason: 'INVALID_JSON' };
-  if (record.category !== 'CPU' && record.category !== 'RAM') {
-    return { status: 'SKIPPED', reason: 'UNSUPPORTED_CATEGORY' };
-  }
   const data = object(record.data);
   const externalId = nonEmptyString(data?.opendb_id);
   const common = data ? metadata(data) : undefined;
   if (!data || !externalId || !uuidV4.test(externalId) || !common) {
     return { status: 'FAILED', reason: 'INVALID_SOURCE_IDENTITY' };
   }
-  const mapped = record.category === 'RAM' ? mapRam(data, common) : mapCpu(data, common);
+  const mapped = (() => {
+    switch (record.category) {
+      case 'CPU': return mapCpu(data, common);
+      case 'Motherboard': return mapMotherboard(data, common);
+      case 'RAM': return mapRam(data, common);
+      case 'GPU': return mapGpu(data, common);
+      case 'CPUCooler': return mapCpuCooler(data, common);
+      case 'PCCase': return mapPcCase(data, common);
+      case 'PSU': return mapPsu(data, common);
+      case 'Storage': return mapStorage(data, common);
+      case 'CaseFan': return undefined;
+      default: return 'UNSUPPORTED';
+    }
+  })();
+  if (mapped === 'UNSUPPORTED') {
+    return { status: 'SKIPPED', reason: 'UNSUPPORTED_CATEGORY' };
+  }
   return mapped
     ? { status: 'MAPPED', value: mapped, externalId }
     : { status: 'SKIPPED', reason: 'INSUFFICIENT_CANONICAL_FIELDS' };

@@ -1,0 +1,16 @@
+{
+  "opendb_id": "61111111-1111-4111-8111-111111111111",
+  "supported_motherboard_form_factors": ["ATX", "Micro ATX", "Mini-ITX"],
+  "supported_power_supply_form_factors": ["ATX"],
+  "max_video_card_length": 315,
+  "max_cpu_cooler_height": 170,
+  "max_psu_length": 200,
+  "expansion_slots": 7,
+  "metadata": {
+    "name": "Example Mesh ATX Case",
+    "manufacturer": "Example",
+    "part_numbers": ["EX-CASE-ATX"],
+    "series": "Mesh",
+    "variant": "Black"
+  }
+}

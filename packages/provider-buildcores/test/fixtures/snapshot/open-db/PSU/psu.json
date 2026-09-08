@@ -1,0 +1,22 @@
+{
+  "opendb_id": "71111111-1111-4111-8111-111111111111",
+  "wattage": 850,
+  "form_factor": "ATX",
+  "length": 160,
+  "connectors": {
+    "atx_24_pin": 1,
+    "eps_8_pin": 2,
+    "pcie_12vhpwr": 1,
+    "pcie_6_plus_2_pin": 4,
+    "sata": 8,
+    "molex_4_pin": 3,
+    "floppy_4_pin": 0
+  },
+  "metadata": {
+    "name": "Example ATX 850W",
+    "manufacturer": "Example",
+    "part_numbers": ["EX-850"],
+    "series": "Power",
+    "variant": "850W"
+  }
+}

@@ -58,15 +58,13 @@ async function loadSnapshot(): Promise<LoadedSnapshot> {
 describe('BuildCores snapshot import', () => {
   test('loads an offline snapshot and reports imported, failed, and skipped records', async () => {
     const snapshot = await loadSnapshot();
-    const ids = [
-      '33333333-3333-4333-8333-333333333333',
-      '44444444-4444-4444-8444-444444444444',
-    ] as PartId[];
+    let nextId = 1;
     const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
       snapshot,
       existingMappings: [],
       canonicalIdentities: [],
-      createPartId: () => ids.shift(),
+      createPartId: () =>
+        `a0000000-0000-4000-8000-${String(nextId++).padStart(12, '0')}` as PartId,
       importedAt: '2026-09-08T00:00:00.000Z',
     });
 
@@ -74,12 +72,98 @@ describe('BuildCores snapshot import', () => {
       providerVersion: `commit:${commitSha}`,
       commitSha,
       schemaFingerprint,
-      counts: { imported: 2, failed: 1, skipped: 1 },
+      counts: { imported: 8, failed: 1, skipped: 2 },
       attribution: {
         license: 'ODC-By-1.0',
         attributionRequired: true,
       },
     });
+  });
+
+  test.each([
+    ['Motherboard', 'MOTHERBOARD'],
+    ['GPU', 'GPU'],
+    ['CPUCooler', 'CPU_COOLER'],
+    ['PCCase', 'PC_CASE'],
+    ['PSU', 'PSU'],
+    ['Storage', 'STORAGE'],
+  ] as const)('maps safe %s fields to %s', async (sourceCategory, canonicalCategory) => {
+    const snapshot = await loadSnapshot();
+    const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
+      snapshot,
+      existingMappings: [],
+      canonicalIdentities: [],
+      createPartId: () => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      importedAt: '2026-09-08T00:00:00.000Z',
+    });
+    const result = report.results.find(({ category }) => category === sourceCategory);
+
+    expect(result).toMatchObject({
+      status: 'IMPORTED',
+      canonicalPart: { schemaVersion: '2.0.0', category: canonicalCategory },
+    });
+  });
+
+  test('does not invent ambiguous motherboard PCIe or power requirement semantics', async () => {
+    const snapshot = await loadSnapshot();
+    const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
+      snapshot,
+      existingMappings: [],
+      canonicalIdentities: [],
+      createPartId: () => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      importedAt: '2026-09-08T00:00:00.000Z',
+    });
+    const result = report.results.find(({ category }) => category === 'Motherboard');
+
+    expect(result?.canonicalPart).not.toHaveProperty('spec.pcieSlots');
+    expect(result?.canonicalPart).not.toHaveProperty(
+      'spec.powerConnectorRequirements',
+    );
+  });
+
+  test('maps GPU link capability without inventing physical lanes or peak power', async () => {
+    const snapshot = await loadSnapshot();
+    const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
+      snapshot,
+      existingMappings: [],
+      canonicalIdentities: [],
+      createPartId: () => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      importedAt: '2026-09-08T00:00:00.000Z',
+    });
+    const result = report.results.find(({ category }) => category === 'GPU');
+
+    expect(result?.canonicalPart).toMatchObject({
+      spec: {
+        lengthMm: 240,
+        slotWidth: 2,
+        pcieGeneration: 4,
+        maxLinkWidthLanes: 8,
+        powerConnectorRequirements: [
+          { type: 'PCIE_8_PIN', count: 1, mode: 'REQUIRED' },
+        ],
+      },
+    });
+    expect(result?.canonicalPart).not.toHaveProperty('spec.physicalConnectorLanes');
+    expect(result?.canonicalPart).not.toHaveProperty('spec.peakPowerW');
+  });
+
+  test('skips CaseFan because the source schema has no thickness field', async () => {
+    const snapshot = await loadSnapshot();
+    const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
+      snapshot,
+      existingMappings: [],
+      canonicalIdentities: [],
+      createPartId: () => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      importedAt: '2026-09-08T00:00:00.000Z',
+    });
+
+    expect(report.results).toContainEqual(
+      expect.objectContaining({
+        category: 'CaseFan',
+        status: 'SKIPPED',
+        reason: 'INSUFFICIENT_CANONICAL_FIELDS',
+      }),
+    );
   });
 
   test('maps RAM.speed only as a provider semantic alias to dataRateMtps', async () => {
@@ -120,7 +204,7 @@ describe('BuildCores snapshot import', () => {
           canonicalUnit: 'MT/s',
           mappingKind: 'SOURCE_SEMANTIC_ALIAS',
           mappingRule: 'BUILDCORES_RAM_SPEED_MARKETED_DATA_RATE',
-          mapperVersion: '1.0.0',
+          mapperVersion: '2.0.0',
         }),
       ]),
     });
@@ -154,7 +238,7 @@ describe('BuildCores snapshot import', () => {
     );
 
     expect(memory?.canonicalPart).toMatchObject({ partId: stablePartId });
-    expect(createPartId).toHaveBeenCalledOnce();
+    expect(createPartId).toHaveBeenCalledTimes(7);
   });
 
   test('preserves a CPU power limit as canonical peak power', async () => {

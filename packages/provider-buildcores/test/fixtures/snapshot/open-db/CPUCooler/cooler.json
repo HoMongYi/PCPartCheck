@@ -1,0 +1,14 @@
+{
+  "opendb_id": "51111111-1111-4111-8111-111111111111",
+  "height": 56,
+  "cpu_sockets": ["AM4", "AM5", "LGA 1700"],
+  "water_cooled": true,
+  "radiator_size": 240,
+  "metadata": {
+    "name": "Example Liquid 240",
+    "manufacturer": "Example",
+    "part_numbers": ["EX-AIO-240"],
+    "series": "Liquid",
+    "variant": "240"
+  }
+}
