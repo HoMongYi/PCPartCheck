@@ -254,6 +254,9 @@ importers:
       '@pcpartcheck/core':
         specifier: workspace:*
         version: link:../core
+      '@sinclair/typebox':
+        specifier: 0.34.52
+        version: 0.34.52
 
   packages/power:
     dependencies:
