@@ -152,10 +152,11 @@ describe('SQLite repositories', () => {
       rawUnit: 'cm',
     };
     const fieldEvidence: FieldEvidenceRecord = {
-      schemaVersion: '1.0.0',
+      schemaVersion: '2.0.0',
       evidenceId: 'field-clearance',
       status: 'APPROVED',
       visibility: 'PUBLIC',
+      redaction: 'NONE',
       outcome: 'ASSEMBLY_FAILURE',
       issueType: 'PHYSICAL_CLEARANCE',
       parts: [{ category: 'CPU', partId: cpu.partId }],

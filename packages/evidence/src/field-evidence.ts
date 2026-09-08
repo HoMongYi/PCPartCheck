@@ -1,58 +1,139 @@
-import type {
-  CanonicalUnit,
-  InstallationContext,
-  JsonPrimitive,
-  PartCategory,
-  PartId,
-  RuleCondition,
-  RuleEvaluation,
+import {
+  CanonicalUnitSchema,
+  InstallationContextSchema,
+  PartIdSchema,
+  type InstallationContext,
+  type RuleCondition,
+  type RuleEvaluation,
 } from '@pcpartcheck/core';
+import { Type, type Static } from '@sinclair/typebox';
 
-export const FIELD_EVIDENCE_SCHEMA_VERSION = '1.0.0' as const;
+/*
+ * Visibility controls who may read a report. Redaction records whether details
+ * were transformed before the record crossed that access boundary.
+ */
+export const FIELD_EVIDENCE_SCHEMA_VERSION = '2.0.0' as const;
 
-export type FieldEvidenceStatus = 'DRAFT' | 'APPROVED' | 'REJECTED';
-export type FieldEvidenceVisibility = 'PUBLIC' | 'PRIVATE' | 'ANONYMIZED';
-export type FieldEvidenceOutcome = 'ASSEMBLY_SUCCESS' | 'ASSEMBLY_FAILURE';
-export type FieldEvidenceIssueType =
-  | 'PHYSICAL_CLEARANCE'
-  | 'RADIATOR_CLEARANCE'
-  | 'MEMORY_CLEARANCE'
-  | 'POWER_CONNECTOR'
-  | 'BIOS_POST'
-  | 'STORAGE_RESOURCE'
-  | 'THERMAL';
+export const FieldEvidenceStatusSchema = Type.Union([
+  Type.Literal('DRAFT'),
+  Type.Literal('APPROVED'),
+  Type.Literal('REJECTED'),
+]);
+export type FieldEvidenceStatus = Static<typeof FieldEvidenceStatusSchema>;
 
-export interface FieldEvidencePartReference {
-  readonly category: PartCategory;
-  readonly partId: PartId;
-}
+export const FieldEvidenceVisibilitySchema = Type.Union([
+  Type.Literal('PUBLIC'),
+  Type.Literal('STAFF_ONLY'),
+  Type.Literal('ADMIN_ONLY'),
+]);
+export type FieldEvidenceVisibility = Static<typeof FieldEvidenceVisibilitySchema>;
 
-export interface FieldMeasurement {
-  readonly fieldPath: string;
-  readonly value: JsonPrimitive;
-  readonly unit?: CanonicalUnit;
-  readonly rawEvidenceId?: string;
-}
+export const FieldEvidenceRedactionSchema = Type.Union([
+  Type.Literal('NONE'),
+  Type.Literal('ANONYMIZED'),
+]);
+export type FieldEvidenceRedaction = Static<typeof FieldEvidenceRedactionSchema>;
 
-export interface FieldEvidenceRecord {
-  readonly schemaVersion: typeof FIELD_EVIDENCE_SCHEMA_VERSION;
-  readonly evidenceId: string;
-  readonly status: FieldEvidenceStatus;
-  readonly visibility: FieldEvidenceVisibility;
-  readonly outcome: FieldEvidenceOutcome;
-  readonly issueType: FieldEvidenceIssueType;
+export const FieldEvidenceOutcomeSchema = Type.Union([
+  Type.Literal('ASSEMBLY_SUCCESS'),
+  Type.Literal('ASSEMBLY_FAILURE'),
+]);
+export type FieldEvidenceOutcome = Static<typeof FieldEvidenceOutcomeSchema>;
+
+export const FieldEvidenceIssueTypeSchema = Type.Union([
+  Type.Literal('PHYSICAL_CLEARANCE'),
+  Type.Literal('RADIATOR_CLEARANCE'),
+  Type.Literal('MEMORY_CLEARANCE'),
+  Type.Literal('POWER_CONNECTOR'),
+  Type.Literal('BIOS_POST'),
+  Type.Literal('STORAGE_RESOURCE'),
+  Type.Literal('THERMAL'),
+]);
+export type FieldEvidenceIssueType = Static<typeof FieldEvidenceIssueTypeSchema>;
+
+const PartCategorySchema = Type.Union([
+  Type.Literal('CPU'),
+  Type.Literal('CPU_COOLER'),
+  Type.Literal('GPU'),
+  Type.Literal('MOTHERBOARD'),
+  Type.Literal('PC_CASE'),
+  Type.Literal('PSU'),
+  Type.Literal('MEMORY'),
+  Type.Literal('STORAGE'),
+  Type.Literal('CASE_FAN'),
+  Type.Literal('PCIE_CARD'),
+]);
+
+export const FieldEvidencePartReferenceSchema = Type.Object(
+  { category: PartCategorySchema, partId: PartIdSchema },
+  { additionalProperties: false },
+);
+
+export const FieldMeasurementSchema = Type.Object(
+  {
+    fieldPath: Type.String({ minLength: 1 }),
+    value: Type.Union([Type.Null(), Type.Boolean(), Type.Number(), Type.String()]),
+    unit: Type.Optional(CanonicalUnitSchema),
+    rawEvidenceId: Type.Optional(Type.String({ minLength: 1 })),
+  },
+  { additionalProperties: false },
+);
+
+export const FieldEvidenceConditionSchema = Type.Object(
+  {
+    code: Type.String({ minLength: 1 }),
+    message: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+
+export const FieldEvidenceRecordSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(FIELD_EVIDENCE_SCHEMA_VERSION),
+    evidenceId: Type.String({ minLength: 1 }),
+    status: FieldEvidenceStatusSchema,
+    visibility: FieldEvidenceVisibilitySchema,
+    redaction: FieldEvidenceRedactionSchema,
+    outcome: FieldEvidenceOutcomeSchema,
+    issueType: FieldEvidenceIssueTypeSchema,
+    parts: Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
+    installationContext: InstallationContextSchema,
+    measurements: Type.Optional(Type.Array(FieldMeasurementSchema)),
+    conditions: Type.Optional(Type.Array(FieldEvidenceConditionSchema)),
+    reportedAt: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+
+export const FieldEvidenceQuerySchema = Type.Object(
+  {
+    issueType: FieldEvidenceIssueTypeSchema,
+    parts: Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
+    installationContext: InstallationContextSchema,
+  },
+  { additionalProperties: false },
+);
+
+export type FieldEvidencePartReference = Static<
+  typeof FieldEvidencePartReferenceSchema
+>;
+export type FieldMeasurement = Static<typeof FieldMeasurementSchema>;
+export type FieldEvidenceRecord = Omit<
+  Static<typeof FieldEvidenceRecordSchema>,
+  'installationContext' | 'parts' | 'measurements' | 'conditions'
+> & {
   readonly parts: readonly FieldEvidencePartReference[];
   readonly installationContext: InstallationContext;
   readonly measurements?: readonly FieldMeasurement[];
   readonly conditions?: readonly RuleCondition[];
-  readonly reportedAt: string;
-}
-
-export interface FieldEvidenceQuery {
-  readonly issueType: FieldEvidenceIssueType;
+};
+export type FieldEvidenceQuery = Omit<
+  Static<typeof FieldEvidenceQuerySchema>,
+  'installationContext' | 'parts'
+> & {
   readonly parts: readonly FieldEvidencePartReference[];
   readonly installationContext: InstallationContext;
-}
+};
 
 export type FieldEvidenceMatch = 'EXACT' | 'SIMILAR' | 'NONE';
 

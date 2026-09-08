@@ -45,10 +45,11 @@ function similarFailure(
   reportedAt: string,
 ): FieldEvidenceRecord {
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '2.0.0',
     evidenceId,
     status: 'APPROVED',
     visibility: 'PUBLIC',
+    redaction: 'NONE',
     outcome: 'ASSEMBLY_FAILURE',
     issueType: 'PHYSICAL_CLEARANCE',
     parts: [

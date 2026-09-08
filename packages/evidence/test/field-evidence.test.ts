@@ -1,4 +1,6 @@
 import type { InstallationContext, RuleEvaluation } from '@pcpartcheck/core';
+import { Value } from '@sinclair/typebox/value';
+import type { TSchema } from '@sinclair/typebox';
 import { describe, expect, test } from 'vitest';
 
 import * as evidence from '../src/index.js';
@@ -55,10 +57,11 @@ function record(
   overrides: Readonly<Record<string, unknown>> = {},
 ): Readonly<Record<string, unknown>> {
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '2.0.0',
     evidenceId: 'field-1',
     status: 'APPROVED',
     visibility: 'PUBLIC',
+    redaction: 'NONE',
     outcome: 'ASSEMBLY_FAILURE',
     issueType: 'PHYSICAL_CLEARANCE',
     parts,
@@ -74,6 +77,20 @@ const unknownBase: RuleEvaluation = {
   reasons: ['GPU length is missing'],
   evidenceIds: [],
 };
+
+describe('Field Evidence public contract', () => {
+  test('requires versioned access visibility and redaction fields', () => {
+    const schema = exportedFunction<TSchema>('FieldEvidenceRecordSchema');
+    const current = record({
+      schemaVersion: '2.0.0',
+      visibility: 'STAFF_ONLY',
+      redaction: 'ANONYMIZED',
+    });
+
+    expect(Value.Check(schema, current)).toBe(true);
+    expect(Value.Check(schema, record({ schemaVersion: '1.0.0' }))).toBe(false);
+  });
+});
 
 describe('classifyFieldEvidenceMatch', () => {
   test('treats reordered part references and typed context arrays as exact', () => {
