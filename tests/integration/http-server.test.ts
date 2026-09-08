@@ -97,7 +97,12 @@ async function createServer(
   const services = {
     checkCompatibility: vi.fn(async () => resultSnapshot),
     checkCompatibilityBatch: vi.fn(async () => ({ results: [resultSnapshot] })),
-    listParts: vi.fn(async () => ({ items: [], total: 0 })),
+    listParts: vi.fn(async (query: { readonly limit?: number; readonly offset?: number }) => ({
+      items: [],
+      total: 0,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
+    })),
     getPart: vi.fn(async () => undefined),
     getEvidence: vi.fn(async (evidenceId: string) => {
       if (evidenceId === 'staff-only') {
@@ -284,12 +289,13 @@ describe('Fastify reference API', () => {
   test('returns consumer-safe Similar Evidence fields without a decision', async () => {
     const { server } = await createServer();
     const response = await server.inject({
-      method: 'GET',
-      url: `/v1/field-evidence/similar?input=${encodeURIComponent(JSON.stringify({
+      method: 'POST',
+      url: '/v1/field-evidence/similar',
+      payload: {
         issueType: 'PHYSICAL_CLEARANCE',
         parts: [],
         installationContext: validCheckRequest.installationContext,
-      }))}`,
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -332,7 +338,9 @@ describe('Fastify reference API', () => {
     ]);
 
     expect(parts.statusCode).toBe(200);
-    expect(parts.json()).toEqual({ items: [], total: 0 });
+    expect(parts.json()).toEqual({
+      items: [], total: 0, limit: 50, offset: 0,
+    });
     expect(evidence.statusCode).toBe(200);
     expect(evidence.json()).toMatchObject({
       evidenceId: 'field-1',
@@ -348,6 +356,25 @@ describe('Fastify reference API', () => {
       },
     ]);
     expect(profiles.json()).toEqual([validCheckRequest.policyProfile]);
+  });
+
+  test('bounds parts pagination and forwards limit plus offset', async () => {
+    const { server, services } = await createServer();
+    const page = await server.inject({
+      method: 'GET',
+      url: '/v1/parts?limit=25&offset=50&search=demo',
+    });
+    const overLimit = await server.inject({
+      method: 'GET',
+      url: '/v1/parts?limit=101',
+    });
+
+    expect(page.statusCode).toBe(200);
+    expect(page.json()).toMatchObject({ limit: 25, offset: 50 });
+    expect(services.listParts).toHaveBeenCalledWith(expect.objectContaining({
+      limit: 25, offset: 50, search: 'demo',
+    }));
+    expect(overLimit.statusCode).toBe(400);
   });
 
   test('enforces draft-only writes and separate moderation authorization', async () => {

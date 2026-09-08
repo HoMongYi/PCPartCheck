@@ -274,10 +274,22 @@ export function createReferenceApiServices(): PcPartCheckApiServices {
       results: await Promise.all(requests.map((request) => engine.check(request))),
     }),
     listParts: async (query) => {
-      const items = [...partCatalog.values()]
+      const matching = [...partCatalog.values()]
         .filter((part) => matchesPartQuery(part, query))
         .sort((left, right) => left.partId.localeCompare(right.partId));
-      return { items, total: items.length };
+      const limit = query.limit ?? 50;
+      const offset = query.offset ?? 0;
+      const items = matching.slice(offset, offset + limit);
+      const nextOffset = offset + items.length < matching.length
+        ? offset + limit
+        : undefined;
+      return {
+        items,
+        total: matching.length,
+        limit,
+        offset,
+        ...(nextOffset === undefined ? {} : { nextOffset }),
+      };
     },
     getPart: async (partId) => partCatalog.get(partId),
     getEvidence: async (evidenceId) => fieldEvidence.get(evidenceId),

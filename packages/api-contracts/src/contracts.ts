@@ -267,6 +267,8 @@ export const PartsQuerySchema = Type.Object(
     category: Type.Optional(PartCategorySchema),
     manufacturer: Type.Optional(Type.String({ minLength: 1 })),
     search: Type.Optional(Type.String({ minLength: 1 })),
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 50 })),
+    offset: Type.Optional(Type.Integer({ minimum: 0, default: 0 })),
   },
   { additionalProperties: false },
 );
@@ -276,6 +278,9 @@ export const PartsResponseSchema = Type.Object(
   {
     items: Type.Array(CanonicalPartSchema),
     total: Type.Integer({ minimum: 0 }),
+    limit: Type.Integer({ minimum: 1, maximum: 100 }),
+    offset: Type.Integer({ minimum: 0 }),
+    nextOffset: Type.Optional(Type.Integer({ minimum: 0 })),
   },
   { additionalProperties: false },
 );
@@ -283,6 +288,9 @@ export const CanonicalPartResponseSchema = CanonicalPartSchema;
 export interface PartsResponse {
   readonly items: readonly CanonicalPart[];
   readonly total: number;
+  readonly limit: number;
+  readonly offset: number;
+  readonly nextOffset?: number;
 }
 
 export const IdParamsSchema = Type.Object(
@@ -331,19 +339,6 @@ export const SimilarEvidenceLookupSchema = Type.Object(
   { additionalProperties: false },
 );
 export type SimilarEvidenceLookup = SimilarityQuery;
-
-export const SimilarEvidenceQueryStringSchema = Type.Object(
-  {
-    input: Type.String({
-      minLength: 2,
-      description: 'JSON-serialized SimilarEvidenceLookup object',
-    }),
-  },
-  { additionalProperties: false },
-);
-export type SimilarEvidenceQueryString = Static<
-  typeof SimilarEvidenceQueryStringSchema
->;
 
 export const SimilarEvidenceResponseItemSchema = Type.Object(
   {

@@ -22,7 +22,6 @@ import {
   ProfilesResponseSchema,
   ResultSnapshotResponseSchema,
   SimilarEvidenceLookupSchema,
-  SimilarEvidenceQueryStringSchema,
   SimilarEvidenceResponseSchema,
   type AuthorizationAction,
   type AuthorizationDecision,
@@ -40,9 +39,7 @@ import {
   type PcPartCheckApiServices,
   type RateLimitProvider,
   type SimilarEvidenceLookup,
-  type SimilarEvidenceQueryString,
 } from '@pcpartcheck/api-contracts';
-import { Value } from '@sinclair/typebox/value';
 import Fastify, {
   type FastifyInstance,
   type FastifyReply,
@@ -254,28 +251,19 @@ export async function buildHttpServer(
     },
   );
 
-  server.get(
+  server.post(
     '/v1/field-evidence/similar',
     {
       schema: {
         tags: ['evidence'],
-        querystring: SimilarEvidenceQueryStringSchema,
+        body: SimilarEvidenceLookupSchema,
         response: { 200: SimilarEvidenceResponseSchema, ...commonErrors },
       },
     },
-    async (request, reply) => {
-      const { input } = request.query as SimilarEvidenceQueryString;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(input);
-      } catch {
-        return reply.code(400).send(error('INVALID_QUERY', 'input must be valid JSON'));
-      }
-      if (!Value.Check(SimilarEvidenceLookupSchema, parsed)) {
-        return reply.code(400).send(error('INVALID_QUERY', 'input does not match the query schema'));
-      }
-      return options.services.findSimilarEvidence(parsed as SimilarEvidenceLookup);
-    },
+    async (request) =>
+      options.services.findSimilarEvidence(
+        request.body as SimilarEvidenceLookup,
+      ),
   );
 
   server.get(

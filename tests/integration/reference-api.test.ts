@@ -115,4 +115,26 @@ describe('reference API composition', () => {
       expect(modes.get(capabilityId)).toBe('DISABLED');
     }
   });
+
+  test('returns bounded catalog pages with a stable next offset', async () => {
+    const factory = (referenceApi as Readonly<Record<string, unknown>>)
+      .createReferenceApiServices as () => {
+        listParts(query: Readonly<Record<string, unknown>>): Promise<{
+          readonly items: readonly unknown[];
+          readonly total: number;
+          readonly limit: number;
+          readonly offset: number;
+          readonly nextOffset?: number;
+        }>;
+      };
+    const services = factory();
+    const first = await services.listParts({ limit: 2, offset: 0 });
+    const second = await services.listParts({ limit: 2, offset: 2 });
+
+    expect(first.items).toHaveLength(2);
+    expect(first).toMatchObject({ limit: 2, offset: 0, nextOffset: 2 });
+    expect(second.items).toHaveLength(2);
+    expect(second).toMatchObject({ total: first.total, limit: 2, offset: 2 });
+    expect(second.items).not.toEqual(first.items);
+  });
 });
