@@ -71,13 +71,11 @@ describe('optional LLM boundary', () => {
       const original = compatibilityResult(status, decision);
       const adapter: TestAdapter = {
         explainCompatibility: async (input) => {
-          const mutable = input as { result: { status: string; decision: string } };
-          mutable.result.status = 'PASS';
-          mutable.result.decision = 'ALLOW';
+          expect(input).not.toHaveProperty('result');
+          expect(input).not.toHaveProperty('status');
+          expect(input).not.toHaveProperty('decision');
           return {
-            text: '설명문',
-            status: 'PASS',
-            decision: 'ALLOW',
+            sections: [{ ruleId: 'socket', text: '소켓 규칙을 확인하세요.' }],
           };
         },
         rankIdentityCandidates: async () => ({ candidatePartIds: [] }),
@@ -90,7 +88,14 @@ describe('optional LLM boundary', () => {
 
       expect(response).toMatchObject({
         status: 'GENERATED',
-        text: '설명문',
+        sections: [{ ruleId: 'socket', text: '소켓 규칙을 확인하세요.' }],
+        presentation: {
+          title: status === 'INCOMPATIBLE'
+            ? '호환되지 않는 필수 조건이 있습니다'
+            : '확인이 필요한 정보가 있습니다',
+          status,
+          decision,
+        },
         deterministicResult: original,
       });
       expect(original).toEqual(compatibilityResult(status, decision));
@@ -100,7 +105,9 @@ describe('optional LLM boundary', () => {
 
   test('returns identity ordering as review-only and removes unknown candidates', async () => {
     const adapter: TestAdapter = {
-      explainCompatibility: async () => ({ text: '설명문' }),
+      explainCompatibility: async () => ({
+        sections: [{ ruleId: 'socket', text: '소켓 규칙 설명' }],
+      }),
       rankIdentityCandidates: async () => ({
         candidatePartIds: ['unknown', 'part-b', 'part-a', 'part-b'],
       }),
@@ -134,6 +141,64 @@ describe('optional LLM boundary', () => {
       toolkit.rankIdentityCandidates({
         sourceRecord: {},
         candidatePartIds: ['part-a'],
+      }),
+    ).resolves.toEqual({ status: 'INVALID_RESPONSE' });
+  });
+
+  test('rejects explanation sections for rule ids absent from the deterministic result', async () => {
+    const adapter: TestAdapter = {
+      explainCompatibility: async () => ({
+        sections: [{ ruleId: 'invented-rule', text: '임의 설명' }],
+      }),
+      rankIdentityCandidates: async () => ({ candidatePartIds: [] }),
+    };
+
+    await expect(
+      createToolkit(adapter).explainCompatibility({
+        result: compatibilityResult('INCOMPATIBLE', 'BLOCK'),
+        audience: 'CUSTOMER',
+      }),
+    ).resolves.toEqual({ status: 'INVALID_RESPONSE' });
+  });
+
+  test('never promotes an attempted overall compatibility verdict to the final title', async () => {
+    const adapter: TestAdapter = {
+      explainCompatibility: async () => ({
+        sections: [{ ruleId: 'socket', text: '모두 호환됩니다.' }],
+      }),
+      rankIdentityCandidates: async () => ({ candidatePartIds: [] }),
+    };
+
+    const response = await createToolkit(adapter).explainCompatibility({
+      result: compatibilityResult('INCOMPATIBLE', 'BLOCK'),
+      audience: 'CUSTOMER',
+    });
+
+    expect(response).toMatchObject({
+      status: 'GENERATED',
+      presentation: {
+        title: '호환되지 않는 필수 조건이 있습니다',
+        status: 'INCOMPATIBLE',
+        decision: 'BLOCK',
+      },
+    });
+    expect(response).not.toHaveProperty('text');
+    expect(response).not.toHaveProperty('verdict');
+  });
+
+  test('rejects top-level verdict fields from the adapter', async () => {
+    const adapter: TestAdapter = {
+      explainCompatibility: async () => ({
+        verdict: 'ALLOW',
+        sections: [{ ruleId: 'socket', text: '소켓 규칙 설명' }],
+      }),
+      rankIdentityCandidates: async () => ({ candidatePartIds: [] }),
+    };
+
+    await expect(
+      createToolkit(adapter).explainCompatibility({
+        result: compatibilityResult('INCOMPATIBLE', 'BLOCK'),
+        audience: 'CUSTOMER',
       }),
     ).resolves.toEqual({ status: 'INVALID_RESPONSE' });
   });
