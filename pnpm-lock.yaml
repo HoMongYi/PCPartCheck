@@ -233,6 +233,9 @@ importers:
       '@pcpartcheck/api-contracts':
         specifier: workspace:*
         version: link:../api-contracts
+      '@sinclair/typebox':
+        specifier: 0.34.52
+        version: 0.34.52
       fastify:
         specifier: 5.12.3
         version: 5.12.3
