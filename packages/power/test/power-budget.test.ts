@@ -29,7 +29,7 @@ function part(
 ): CanonicalPart {
   const digit = String(idDigit);
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     partId: `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`,
     category,
     manufacturer: 'Example',
@@ -62,11 +62,11 @@ function baseParts(vendorRecommendedPsuW = 650): CanonicalPart[] {
 }
 
 function build(parts: readonly CanonicalPart[]): CanonicalBuild {
-  return { schemaVersion: '2.0.0', parts: [...parts] };
+  return { schemaVersion: '3.0.0', parts: [...parts] };
 }
 
 const installationContext: InstallationContext = {
-  schemaVersion: '1.0.0',
+  schemaVersion: '2.0.0',
   radiators: [],
   hddCages: [],
   gpuOrientation: 'HORIZONTAL',
@@ -194,6 +194,75 @@ describe('psuConnectorRule', () => {
       2,
     );
   }
+
+  test('returns unknown when GPU connector requirements are not known', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        part('GPU', { peakPowerW: 75 }, 2),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 650, powerConnectors: [] }, 5),
+      ]),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
+  test('accepts a GPU with confirmed no external connector requirement', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        gpuWith([]),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 650, powerConnectors: [] }, 5),
+      ]),
+    );
+
+    expect(result.status).toBe('PASS');
+  });
+
+  test('returns unknown when PSU connector inventory is not known', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        gpuWith([{ type: 'PCIE_8_PIN', count: 1, mode: 'REQUIRED' }]),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 650 }, 5),
+      ]),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
+  test('treats a known empty PSU inventory as incompatible with a requirement', async () => {
+    const result = await exportedRule('psuConnectorRule').evaluate(
+      context([
+        gpuWith([{ type: 'PCIE_8_PIN', count: 1, mode: 'REQUIRED' }]),
+        part('PSU', { formFactor: 'ATX', ratedPowerW: 650, powerConnectors: [] }, 5),
+      ]),
+    );
+
+    expect(result.status).toBe('INCOMPATIBLE');
+  });
+
+  test('returns unknown when a required independent cable count is not known', async () => {
+    const ruleContext = context([
+      gpuWith([{
+        type: 'PCIE_8_PIN',
+        count: 2,
+        mode: 'REQUIRED',
+        independentCableCount: 2,
+      }]),
+      part('PSU', {
+        formFactor: 'ATX',
+        ratedPowerW: 850,
+        powerConnectors: [{ type: 'PCIE_8_PIN', count: 2 }],
+      }, 5),
+    ]);
+    const result = await exportedRule('psuConnectorRule').evaluate({
+      ...ruleContext,
+      installationContext: {
+        ...ruleContext.installationContext,
+        pciePower: { adapterUsed: false },
+      },
+    });
+
+    expect(result.status).toBe('UNKNOWN');
+  });
 
   test('rejects missing GPU power connectors even when wattage is sufficient', async () => {
     const result = await exportedRule('psuConnectorRule').evaluate(

@@ -8,6 +8,7 @@ import type {
   PowerConnectorSpec,
   PsuFormFactor,
 } from '@pcpartcheck/core';
+import { CANONICAL_SCHEMA_VERSION } from '@pcpartcheck/core';
 import {
   IDENTITY_MAPPER_VERSION,
   resolveCanonicalIdentity,
@@ -181,9 +182,9 @@ function pcieInterface(value: unknown):
 
 function connectorRequirements(
   value: unknown,
-): PowerConnectorRequirement[] {
+): PowerConnectorRequirement[] | undefined {
   const connectors = object(value);
-  if (!connectors) return [];
+  if (!connectors) return undefined;
   const mappings = [
     ['pcie_6_pin', 'PCIE_6_PIN'],
     ['pcie_8_pin', 'PCIE_8_PIN'],
@@ -196,9 +197,9 @@ function connectorRequirements(
   });
 }
 
-function suppliedConnectors(value: unknown): PowerConnectorSpec[] {
+function suppliedConnectors(value: unknown): PowerConnectorSpec[] | undefined {
   const connectors = object(value);
-  if (!connectors) return [];
+  if (!connectors) return undefined;
   const mappings = [
     ['atx_24_pin', 'ATX_24_PIN'],
     ['eps_8_pin', 'EPS_8_PIN'],
@@ -331,7 +332,9 @@ function mapGpu(
       ...(slotWidth ? { slotWidth } : {}),
       ...(link?.generation ? { pcieGeneration: link.generation } : {}),
       ...(link ? { maxLinkWidthLanes: link.lanes } : {}),
-      ...(requirements.length ? { powerConnectorRequirements: requirements } : {}),
+      ...(requirements === undefined
+        ? {}
+        : { powerConnectorRequirements: requirements }),
     },
     criticalSpecs: {
       ...(nonEmptyString(data.chipset) ? { chipset: nonEmptyString(data.chipset)! } : {}),
@@ -454,6 +457,7 @@ function mapPsu(
     ? undefined
     : unitAudit('length', 'spec.lengthMm', length, 'mm');
   const parsedIdentifiers = identifiers(data, common.partNumbers);
+  const powerConnectors = suppliedConnectors(data.connectors);
   return {
     category: 'PSU',
     manufacturer: common.manufacturer,
@@ -463,11 +467,46 @@ function mapPsu(
     spec: {
       formFactor,
       ratedPowerW: ratedPower.value,
-      powerConnectors: suppliedConnectors(data.connectors),
+      ...(powerConnectors === undefined ? {} : { powerConnectors }),
       ...(normalizedLength ? { lengthMm: normalizedLength.value } : {}),
     },
     criticalSpecs: { formFactor, ratedPowerW: ratedPower.value },
     audit: [ratedPower.audit, ...(normalizedLength ? [normalizedLength.audit] : [])],
+  };
+}
+
+function mapCaseFan(
+  data: Readonly<Record<string, unknown>>,
+  common: ReturnType<typeof metadata> & {},
+): MappedBuildCoresPart | undefined {
+  const diameterMm = positiveInteger(data.size);
+  const sourceConnector = nonEmptyString(data.connector);
+  const connector =
+    data.pwm === true || /4[- ]?pin\s*pwm/iu.test(sourceConnector ?? '')
+      ? ('PWM_4_PIN' as const)
+      : data.pwm === false || /3[- ]?pin/iu.test(sourceConnector ?? '')
+        ? ('DC_3_PIN' as const)
+        : undefined;
+  if (diameterMm === undefined || connector === undefined) return undefined;
+  const diameter = unitAudit('size', 'spec.diameterMm', diameterMm, 'mm');
+  const parsedIdentifiers = identifiers(data, common.partNumbers);
+  return {
+    category: 'CASE_FAN',
+    manufacturer: common.manufacturer,
+    model: common.name,
+    ...(parsedIdentifiers.mpn ? { mpn: parsedIdentifiers.mpn } : {}),
+    identifiers: parsedIdentifiers,
+    spec: { diameterMm: diameter.value, connector },
+    criticalSpecs: { diameterMm: diameter.value, connector },
+    audit: [
+      diameter.audit,
+      directAudit(
+        sourceConnector ? 'connector' : 'pwm',
+        'spec.connector',
+        (sourceConnector ?? data.pwm) as JsonValue,
+        connector,
+      ),
+    ],
   };
 }
 
@@ -645,7 +684,7 @@ function mapRecord(record: BuildCoresSnapshotRecord):
       case 'PCCase': return mapPcCase(data, common);
       case 'PSU': return mapPsu(data, common);
       case 'Storage': return mapStorage(data, common);
-      case 'CaseFan': return undefined;
+      case 'CaseFan': return mapCaseFan(data, common);
       default: return 'UNSUPPORTED';
     }
   })();
@@ -659,7 +698,7 @@ function mapRecord(record: BuildCoresSnapshotRecord):
 
 function canonicalPart(mapped: MappedBuildCoresPart, partId: PartId): CanonicalPart {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: CANONICAL_SCHEMA_VERSION,
     partId,
     category: mapped.category,
     manufacturer: mapped.manufacturer,

@@ -34,7 +34,7 @@ function clearanceCase(
   }> = {},
 ): CanonicalPart {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     partId: '44444444-4444-4444-8444-444444444444',
     category: 'PC_CASE',
     manufacturer: 'Example',
@@ -48,12 +48,43 @@ function clearanceCase(
 }
 
 function withRadiator(
-  radiator: InstallationContext['radiators'][number],
+  radiator: NonNullable<InstallationContext['radiators']>[number],
 ): InstallationContext {
   return { ...installationContext, radiators: [radiator] };
 }
 
 describe('gpuClearanceRule', () => {
+  test('returns unknown when installed radiator facts are not known', async () => {
+    const unknownContext: InstallationContext = { schemaVersion: '2.0.0' };
+    const result = await exportedRule('gpuClearanceRule').evaluate(
+      context(
+        [gpu(300), clearanceCase({ maxGpuLengthMm: 320 })],
+        'gpu-clearance',
+        undefined,
+        unknownContext as unknown as InstallationContext,
+      ),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
+  test('returns unknown when a front radiator stack thickness is incomplete', async () => {
+    const result = await exportedRule('gpuClearanceRule').evaluate(
+      context(
+        [gpu(300), clearanceCase({ maxGpuLengthMm: 350 })],
+        'gpu-clearance',
+        undefined,
+        withRadiator({
+          position: 'FRONT',
+          sizeMm: 360,
+          radiatorThicknessMm: 30,
+        } as NonNullable<InstallationContext['radiators']>[number]),
+      ),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
   test('returns incompatible when GPU is longer than effective clearance', async () => {
     const result = await exportedRule('gpuClearanceRule').evaluate(
       context([gpu(321), clearanceCase({ maxGpuLengthMm: 320 })], 'gpu-clearance'),
@@ -148,6 +179,28 @@ describe('psuLengthRule', () => {
 });
 
 describe('radiatorMountRule', () => {
+  test('returns unknown when installed radiator thickness is not known', async () => {
+    const result = await exportedRule('radiatorMountRule').evaluate(
+      context(
+        [clearanceCase({
+          radiatorMounts: [{
+            position: 'FRONT',
+            supportedSizesMm: [360],
+            maxCombinedThicknessMm: 70,
+          }],
+        })],
+        'radiator',
+        undefined,
+        withRadiator({
+          position: 'FRONT',
+          sizeMm: 360,
+        } as NonNullable<InstallationContext['radiators']>[number]),
+      ),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
   test('rejects a radiator size unsupported at its position', async () => {
     const result = await exportedRule('radiatorMountRule').evaluate(
       context(

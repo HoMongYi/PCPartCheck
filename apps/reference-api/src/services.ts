@@ -7,6 +7,7 @@ import type {
 } from '@pcpartcheck/api-contracts';
 import {
   CANONICAL_SCHEMA_VERSION,
+  INSTALLATION_CONTEXT_SCHEMA_VERSION,
   createCompatibilityEngine,
   type CanonicalPart,
   type EngineRule,
@@ -44,6 +45,7 @@ const versions = {
   engineVersion: '0.1.0',
   ruleSetVersion: '0.1.0',
   canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
+  installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
   identityMapperVersion: '1.1.0',
   providerVersions: [
     { providerId: 'synthetic-demo', providerVersion: '1.0.0' },

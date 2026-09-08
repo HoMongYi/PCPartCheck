@@ -24,12 +24,30 @@ test('installed radiator size is any positive integer', () => {
   expect(Value.Check(schema, { ...radiator, sizeMm: 200.5 })).toBe(false);
 });
 
+test('installation context distinguishes unknown facts from confirmed zero values', () => {
+  const schema = exportedSchema('InstallationContextSchema');
+
+  expect(Value.Check(schema, { schemaVersion: '2.0.0' })).toBe(true);
+  expect(
+    Value.Check(schema, {
+      schemaVersion: '2.0.0',
+      radiators: [],
+      pciePower: {
+        independentCableCount: 0,
+        native12VhpwrCableCount: 0,
+        native12V2x6CableCount: 0,
+        adapterUsed: false,
+      },
+    }),
+  ).toBe(true);
+});
+
 test('installation context validates exact field evidence inputs', () => {
   const schema = exportedSchema('InstallationContextSchema');
 
   expect(
     Value.Check(schema, {
-      schemaVersion: '1.0.0',
+      schemaVersion: '2.0.0',
       radiators: [
         {
           position: 'FRONT',
@@ -55,7 +73,7 @@ test('installation context validates exact field evidence inputs', () => {
   ).toBe(true);
   expect(
     Value.Check(schema, {
-      schemaVersion: '1.0.0',
+      schemaVersion: '2.0.0',
       radiators: [],
       hddCages: [],
       gpuOrientation: 'DIAGONAL',

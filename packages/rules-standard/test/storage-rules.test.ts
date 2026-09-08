@@ -15,7 +15,7 @@ function board(
   pcieSlots?: readonly PcieSlotSpec[],
 ): CanonicalPart {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     partId: '22222222-2222-4222-8222-222222222222',
     category: 'MOTHERBOARD',
     manufacturer: 'Example',
@@ -34,11 +34,12 @@ function board(
 function storage(
   index: number,
   interfaceType: 'PCIE_NVME' | 'SATA' = 'PCIE_NVME',
-  formFactor: 2230 | 2242 | 2260 | 2280 | 22110 = 2280,
+  formFactor: 2230 | 2242 | 2260 | 2280 | 22110 | null = 2280,
+  m2Key: 'B' | 'M' | 'B_M' | null = 'M',
 ): CanonicalPart {
   const digit = String(index).repeat(8);
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     partId: `${digit}-${String(index).repeat(4)}-4${String(index).repeat(3)}-8${String(index).repeat(3)}-${String(index).repeat(12)}`,
     category: 'STORAGE',
     manufacturer: 'Example',
@@ -48,7 +49,8 @@ function storage(
       storageType: interfaceType === 'PCIE_NVME' ? 'NVME_SSD' : 'SATA_SSD',
       capacityGb: 1000,
       interface: interfaceType,
-      m2FormFactor: formFactor,
+      ...(formFactor === null ? {} : { m2FormFactor: formFactor }),
+      ...(m2Key ? { m2Key } : {}),
     },
   };
 }
@@ -67,6 +69,44 @@ const nvmeOnlySlot: M2SlotSpec = {
 };
 
 describe('m2SlotCompatibilityRule', () => {
+  test.each([
+    ['M', 'M'],
+    ['B_M', 'M'],
+    ['B_M', 'B'],
+  ] as const)('accepts %s-key SSD in %s-key slot', async (deviceKey, slotKey) => {
+    const result = await exportedRule('m2SlotCompatibilityRule').evaluate(
+      context([
+        storage(1, 'PCIE_NVME', 2280, deviceKey),
+        board([{ ...nvmeOnlySlot, key: slotKey }]),
+      ], 'storage'),
+    );
+
+    expect(result.status).toBe('PASS');
+  });
+
+  test('does not treat an E-key slot as compatible with an NVMe SSD', async () => {
+    const result = await exportedRule('m2SlotCompatibilityRule').evaluate(
+      context([
+        storage(1, 'PCIE_NVME', 2230, 'M'),
+        board([{
+          ...nvmeOnlySlot,
+          key: 'E',
+          formFactors: [2230],
+        }]),
+      ], 'storage'),
+    );
+
+    expect(result.status).toBe('INCOMPATIBLE');
+  });
+
+  test('returns unknown when the M.2 device key is missing', async () => {
+    const result = await exportedRule('m2SlotCompatibilityRule').evaluate(
+      context([storage(1, 'PCIE_NVME', 2280, null), board([nvmeOnlySlot])], 'storage'),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
   test('rejects more M.2 devices than compatible slots', async () => {
     const result = await exportedRule('m2SlotCompatibilityRule').evaluate(
       context([storage(1), storage(2), board([nvmeOnlySlot])], 'storage'),
@@ -104,13 +144,33 @@ describe('m2SlotCompatibilityRule', () => {
 });
 
 describe('m2SataSharingRule', () => {
+  test('returns unknown when a selected compatible slot omits sharing data', async () => {
+    const result = await exportedRule('m2SataSharingRule').evaluate(
+      context([storage(1), storage(2, 'SATA', null), board([nvmeOnlySlot])], 'storage-sharing'),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
+
+  test('passes only when a compatible slot explicitly declares no shared ports', async () => {
+    const result = await exportedRule('m2SataSharingRule').evaluate(
+      context([
+        storage(1),
+        storage(2, 'SATA', null),
+        board([{ ...nvmeOnlySlot, sharedSataPortIds: [] }]),
+      ], 'storage-sharing'),
+    );
+
+    expect(result.status).toBe('PASS');
+  });
+
   test('returns conditional when an M.2 slot may disable SATA ports', async () => {
     const sharedSlot: M2SlotSpec = {
       ...nvmeOnlySlot,
       sharedSataPortIds: ['SATA_1', 'SATA_2'],
     };
     const result = await exportedRule('m2SataSharingRule').evaluate(
-      context([storage(1), storage(2, 'SATA'), board([sharedSlot])], 'storage-sharing'),
+      context([storage(1), storage(2, 'SATA', null), board([sharedSlot])], 'storage-sharing'),
     );
 
     expect(result).toMatchObject({
@@ -124,7 +184,7 @@ describe('pcieSlotCompatibilityRule', () => {
   test('rejects a GPU only when no physical slot is large enough', async () => {
     const graphics = {
       ...gpu(300),
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       spec: {
         lengthMm: 300,
         pcieGeneration: 5,
@@ -156,7 +216,7 @@ describe('pcieSlotCompatibilityRule', () => {
   test('allows a physical x16 GPU in a physical x16 electrical x8 slot', async () => {
     const graphics = {
       ...gpu(300),
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       spec: {
         lengthMm: 300,
         pcieGeneration: 5,
@@ -188,11 +248,11 @@ describe('pcieSlotCompatibilityRule', () => {
   test('assigns GPU and add-in cards to separate physical slots', async () => {
     const graphics = {
       ...gpu(300),
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       spec: { lengthMm: 300, physicalConnectorLanes: 16 },
     } as CanonicalPart;
     const captureCard = {
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       partId: '99999999-9999-4999-8999-999999999999',
       category: 'PCIE_CARD',
       manufacturer: 'Example',
@@ -250,12 +310,40 @@ describe('pcieSlotCompatibilityRule', () => {
 
     expect(result.status).toBe('UNKNOWN');
   });
+
+  test('returns unknown when occupied PCIe slot facts are missing', async () => {
+    const graphics = {
+      ...gpu(300),
+      spec: { lengthMm: 300, physicalConnectorLanes: 16 },
+    } as CanonicalPart;
+    const result = await exportedRule('pcieSlotCompatibilityRule').evaluate(
+      context(
+        [
+          graphics,
+          board(undefined, [
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 16,
+              electricalLanes: 16,
+              positionIndex: 1,
+            },
+          ]),
+        ],
+        'pcie-slot',
+        undefined,
+        { schemaVersion: '2.0.0' },
+      ),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
+  });
 });
 
 describe('pcieBandwidthAdvisoryRule', () => {
   const graphics = {
     ...gpu(300),
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     spec: {
       lengthMm: 300,
       pcieGeneration: 5,
@@ -306,5 +394,29 @@ describe('pcieBandwidthAdvisoryRule', () => {
     );
 
     expect(result.status).toBe('WARNING');
+  });
+
+  test('returns unknown when occupied PCIe slot facts are missing', async () => {
+    const result = await exportedRule('pcieBandwidthAdvisoryRule').evaluate(
+      context(
+        [
+          graphics,
+          board(undefined, [
+            {
+              slotId: 'PCIE_1',
+              generation: 5,
+              physicalLanes: 16,
+              electricalLanes: 16,
+              positionIndex: 1,
+            },
+          ]),
+        ],
+        'pcie-bandwidth',
+        undefined,
+        { schemaVersion: '2.0.0' },
+      ),
+    );
+
+    expect(result.status).toBe('UNKNOWN');
   });
 });

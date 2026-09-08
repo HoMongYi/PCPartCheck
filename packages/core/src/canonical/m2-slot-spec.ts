@@ -2,13 +2,20 @@ import { Type, type Static } from '@sinclair/typebox';
 
 import { PositiveIntegerSchema } from './primitives.js';
 
-export const M2KeySchema = Type.Union([
+export const M2SlotKeySchema = Type.Union([
   Type.Literal('B'),
   Type.Literal('M'),
   Type.Literal('B_M'),
   Type.Literal('E'),
 ]);
-export type M2Key = Static<typeof M2KeySchema>;
+export type M2SlotKey = Static<typeof M2SlotKeySchema>;
+
+export const M2DeviceKeySchema = Type.Union([
+  Type.Literal('B'),
+  Type.Literal('M'),
+  Type.Literal('B_M'),
+]);
+export type M2DeviceKey = Static<typeof M2DeviceKeySchema>;
 
 export const M2InterfaceSchema = Type.Union([
   Type.Literal('PCIE_NVME'),
@@ -28,7 +35,7 @@ export type M2FormFactor = Static<typeof M2FormFactorSchema>;
 export const M2SlotSpecSchema = Type.Object(
   {
     slotId: Type.String({ minLength: 1 }),
-    key: M2KeySchema,
+    key: M2SlotKeySchema,
     formFactors: Type.Array(M2FormFactorSchema, { minItems: 1, uniqueItems: true }),
     interfaces: Type.Array(M2InterfaceSchema, { minItems: 1, uniqueItems: true }),
     pcieGen: Type.Optional(PositiveIntegerSchema),

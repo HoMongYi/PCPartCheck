@@ -22,7 +22,7 @@ function exportedFunction<T>(name: string): T {
 }
 
 const installationContext: InstallationContext = {
-  schemaVersion: '1.0.0',
+  schemaVersion: '2.0.0',
   radiators: [
     {
       position: 'FRONT',

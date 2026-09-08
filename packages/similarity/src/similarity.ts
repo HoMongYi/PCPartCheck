@@ -160,7 +160,8 @@ function scoreParts(
   };
 }
 
-function ordered(value: readonly unknown[]): string {
+function ordered(value: readonly unknown[] | undefined): string {
+  if (value === undefined) return 'undefined';
   return JSON.stringify(
     [...value].sort((left, right) =>
       JSON.stringify(left).localeCompare(JSON.stringify(right)),
@@ -174,6 +175,12 @@ function scoreRadiators(
 ): FeatureScore {
   const queryRadiators = query.installationContext.radiators;
   const recordRadiators = record.installationContext.radiators;
+  if (queryRadiators === undefined || recordRadiators === undefined) {
+    return exactFeature(
+      'installationContext.radiators',
+      queryRadiators === recordRadiators,
+    );
+  }
   if (queryRadiators.length === 0 || recordRadiators.length === 0) {
     return exactFeature(
       'installationContext.radiators',

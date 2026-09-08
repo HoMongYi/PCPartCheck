@@ -19,7 +19,7 @@ export interface DemoScenario {
 }
 
 const baseInstallationContext: InstallationContext = {
-  schemaVersion: '1.0.0',
+  schemaVersion: '2.0.0',
   radiators: [],
   hddCages: [],
   gpuOrientation: 'HORIZONTAL',
@@ -33,7 +33,7 @@ const baseInstallationContext: InstallationContext = {
 };
 
 const cpu: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000001',
   category: 'CPU',
   manufacturer: '샘플 제조사',
@@ -43,7 +43,7 @@ const cpu: CanonicalPart = {
 };
 
 const motherboard: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000002',
   category: 'MOTHERBOARD',
   manufacturer: '샘플 제조사',
@@ -66,7 +66,7 @@ const motherboard: CanonicalPart = {
 };
 
 const memory: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000003',
   category: 'MEMORY',
   manufacturer: '샘플 제조사',
@@ -82,7 +82,7 @@ const memory: CanonicalPart = {
 };
 
 const pcCase: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000004',
   category: 'PC_CASE',
   manufacturer: '샘플 제조사',
@@ -105,7 +105,7 @@ const pcCase: CanonicalPart = {
 };
 
 const gpu: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000005',
   category: 'GPU',
   manufacturer: '샘플 제조사',
@@ -127,7 +127,7 @@ const gpu: CanonicalPart = {
 };
 
 const psu: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000006',
   category: 'PSU',
   manufacturer: '샘플 제조사',
@@ -146,7 +146,7 @@ const psu: CanonicalPart = {
 };
 
 const argbFan: CanonicalPart = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '3.0.0',
   partId: '10000000-0000-4000-8000-000000000007',
   category: 'CASE_FAN',
   manufacturer: '샘플 제조사',
@@ -168,7 +168,7 @@ function input(
   installationContext: InstallationContext = baseInstallationContext,
 ): CompatibilityCheckInput {
   return {
-    build: { schemaVersion: '2.0.0', parts: [...parts] },
+    build: { schemaVersion: '3.0.0', parts: [...parts] },
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext,
     policyProfile: {

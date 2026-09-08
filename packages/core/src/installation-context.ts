@@ -9,14 +9,14 @@ import {
 } from './canonical/primitives.js';
 import { RadiatorPositionSchema } from './canonical/radiator-mount-spec.js';
 
-export const INSTALLATION_CONTEXT_SCHEMA_VERSION = '1.0.0' as const;
+export const INSTALLATION_CONTEXT_SCHEMA_VERSION = '2.0.0' as const;
 
 export const InstalledRadiatorSchema = Type.Object(
   {
     position: RadiatorPositionSchema,
     sizeMm: PositiveIntegerSchema,
-    radiatorThicknessMm: PositiveNumberSchema,
-    fanThicknessMm: PositiveNumberSchema,
+    radiatorThicknessMm: Type.Optional(PositiveNumberSchema),
+    fanThicknessMm: Type.Optional(PositiveNumberSchema),
   },
   { additionalProperties: false },
 );
@@ -44,10 +44,10 @@ export type GpuOrientation = Static<typeof GpuOrientationSchema>;
 
 export const PciePowerInstallationSchema = Type.Object(
   {
-    independentCableCount: NonNegativeIntegerSchema,
-    native12VhpwrCableCount: NonNegativeIntegerSchema,
-    native12V2x6CableCount: NonNegativeIntegerSchema,
-    adapterUsed: Type.Boolean(),
+    independentCableCount: Type.Optional(NonNegativeIntegerSchema),
+    native12VhpwrCableCount: Type.Optional(NonNegativeIntegerSchema),
+    native12V2x6CableCount: Type.Optional(NonNegativeIntegerSchema),
+    adapterUsed: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -58,13 +58,13 @@ export type PciePowerInstallation = Static<
 export const InstallationContextSchema = Type.Object(
   {
     schemaVersion: Type.Literal(INSTALLATION_CONTEXT_SCHEMA_VERSION),
-    radiators: Type.Array(InstalledRadiatorSchema),
-    hddCages: Type.Array(InstalledHddCageSchema),
-    gpuOrientation: GpuOrientationSchema,
-    occupiedPcieSlotIds: Type.Array(Type.String({ minLength: 1 }), {
-      uniqueItems: true,
-    }),
-    pciePower: PciePowerInstallationSchema,
+    radiators: Type.Optional(Type.Array(InstalledRadiatorSchema)),
+    hddCages: Type.Optional(Type.Array(InstalledHddCageSchema)),
+    gpuOrientation: Type.Optional(GpuOrientationSchema),
+    occupiedPcieSlotIds: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
+    ),
+    pciePower: Type.Optional(PciePowerInstallationSchema),
     installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
     customFacts: Type.Optional(Type.Record(Type.String(), JsonValueSchema)),
   },

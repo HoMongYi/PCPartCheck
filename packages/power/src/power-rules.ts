@@ -76,7 +76,7 @@ function connectorCounts(connectors: readonly PowerConnectorSpec[]) {
 
 interface PowerConsumer {
   readonly partId: string;
-  readonly requirements: readonly PowerConnectorRequirement[];
+  readonly requirements: readonly PowerConnectorRequirement[] | undefined;
   readonly adapters: readonly PowerAdapterRequirement[];
 }
 
@@ -89,13 +89,13 @@ function powerConsumers(
       case 'PCIE_CARD':
         return [{
           partId: part.partId,
-          requirements: part.spec.powerConnectorRequirements ?? [],
+          requirements: part.spec.powerConnectorRequirements,
           adapters: part.spec.powerAdapterRequirements ?? [],
         }];
       case 'MOTHERBOARD':
         return [{
           partId: part.partId,
-          requirements: part.spec.powerConnectorRequirements ?? [],
+          requirements: part.spec.powerConnectorRequirements,
           adapters: [],
         }];
       default:
@@ -129,21 +129,51 @@ export const psuConnectorRule: EngineRule = {
       };
     }
 
+    if (psu.spec.powerConnectors === undefined) {
+      return {
+        status: 'UNKNOWN',
+        summary: 'PSU connector inventory is missing',
+        reasons: ['Known no connectors must be represented by an empty list'],
+        evidenceIds: [],
+      };
+    }
     const provided = connectorCounts(psu.spec.powerConnectors);
     const consumers = powerConsumers(build.parts);
+    const pciePower = installationContext.pciePower;
+    if (consumers.some(({ requirements }) => requirements === undefined)) {
+      return {
+        status: 'UNKNOWN',
+        summary: 'Component power connector requirements are missing',
+        reasons: ['Known no connector requirement must be represented by an empty list'],
+        evidenceIds: [],
+      };
+    }
     const adapterConditions = [];
     const declaredConditions = [];
     const optionalMissing: string[] = [];
 
     for (const mode of ['REQUIRED', 'CONDITIONAL', 'OPTIONAL'] as const) {
       for (const consumer of consumers) {
-        for (const requirement of consumer.requirements.filter(
+        for (const requirement of (consumer.requirements ?? []).filter(
           (candidate) => candidate.mode === mode,
         )) {
           if (take(provided, requirement.type, requirement.count)) {
+            const independentCableCount = pciePower?.independentCableCount;
             if (
               requirement.independentCableCount !== undefined &&
-              installationContext.pciePower.independentCableCount <
+              independentCableCount === undefined
+            ) {
+              return {
+                status: 'UNKNOWN',
+                summary: 'Independent PCIe power cable facts are missing',
+                reasons: ['The required cable count cannot be checked'],
+                evidenceIds: [],
+              };
+            }
+            if (
+              requirement.independentCableCount !== undefined &&
+              independentCableCount !== undefined &&
+              independentCableCount <
                 requirement.independentCableCount
             ) {
               return {
@@ -178,7 +208,19 @@ export const psuConnectorRule: EngineRule = {
           const highPowerConnector =
             requirement.type === 'PCIE_12V_2X6' ||
             requirement.type === 'PCIE_12VHPWR';
-          if (highPowerConnector && installationContext.pciePower.adapterUsed) {
+          const adapterUsed = pciePower?.adapterUsed;
+          if (
+            highPowerConnector &&
+            adapterUsed === undefined
+          ) {
+            return {
+              status: 'UNKNOWN',
+              summary: 'High-power connector installation facts are missing',
+              reasons: ['Native cable or documented adapter use is not declared'],
+              evidenceIds: [],
+            };
+          }
+          if (highPowerConnector && adapterUsed === true) {
             const adapter = consumer.adapters.find(
               (candidate) =>
                 candidate.outputType === requirement.type &&
@@ -200,9 +242,22 @@ export const psuConnectorRule: EngineRule = {
                 evidenceIds: [],
               };
             }
+            const independentCableCount = pciePower?.independentCableCount;
             if (
               adapter.independentCableCount !== undefined &&
-              installationContext.pciePower.independentCableCount <
+              independentCableCount === undefined
+            ) {
+              return {
+                status: 'UNKNOWN',
+                summary: 'Adapter independent cable facts are missing',
+                reasons: ['The documented adapter cable count cannot be checked'],
+                evidenceIds: [],
+              };
+            }
+            if (
+              adapter.independentCableCount !== undefined &&
+              independentCableCount !== undefined &&
+              independentCableCount <
                 adapter.independentCableCount
             ) {
               return {

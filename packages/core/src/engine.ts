@@ -14,6 +14,7 @@ import {
   type JsonValue,
 } from './canonical/primitives.js';
 import {
+  INSTALLATION_CONTEXT_SCHEMA_VERSION,
   InstallationContextSchema,
   type InstallationContext,
 } from './installation-context.js';
@@ -97,6 +98,14 @@ function assertRuntimeVersions(versions: EngineVersions): void {
       `Engine canonical schema ${versions.canonicalSchemaVersion} does not match ${CANONICAL_SCHEMA_VERSION}`,
     );
   }
+  if (
+    versions.installationContextSchemaVersion !==
+    INSTALLATION_CONTEXT_SCHEMA_VERSION
+  ) {
+    throw new Error(
+      `Engine installation context schema ${versions.installationContextSchemaVersion} does not match ${INSTALLATION_CONTEXT_SCHEMA_VERSION}`,
+    );
+  }
   assertUniqueIds(
     versions.providerVersions.map(({ providerId }) => providerId),
     'provider version',
@@ -115,6 +124,16 @@ function assertReplayVersions(
       'canonicalSchemaVersion',
       snapshot.canonicalSchemaVersion,
       versions.canonicalSchemaVersion,
+    ],
+    [
+      'installationContextSchemaVersion',
+      snapshot.installationContextSchemaVersion,
+      versions.installationContextSchemaVersion,
+    ],
+    [
+      'installationContextSchemaVersion',
+      snapshot.inputSnapshot.installationContext.schemaVersion,
+      snapshot.installationContextSchemaVersion,
     ],
     [
       'identityMapperVersion',

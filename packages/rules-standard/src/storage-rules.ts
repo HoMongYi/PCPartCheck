@@ -1,5 +1,7 @@
 import type {
   EngineRule,
+  M2DeviceKey,
+  M2SlotKey,
   M2SlotSpec,
   PcieSlotSpec,
   StorageSpec,
@@ -16,35 +18,55 @@ function unknown(summary: string) {
   };
 }
 
+export function isM2KeyCompatible(
+  deviceKey: M2DeviceKey,
+  slotKey: M2SlotKey,
+): boolean {
+  if (slotKey === 'E') return false;
+  if (deviceKey === 'B_M') return true;
+  if (slotKey === 'B_M') return true;
+  return deviceKey === slotKey;
+}
+
 function slotSupports(storage: StorageSpec, slot: M2SlotSpec): boolean {
   return (
     storage.m2FormFactor !== undefined &&
+    storage.m2Key !== undefined &&
+    isM2KeyCompatible(storage.m2Key, slot.key) &&
     slot.formFactors.includes(storage.m2FormFactor) &&
     slot.interfaces.includes(storage.interface)
   );
 }
 
-function hasCompleteAssignment(
+function findCompleteAssignment(
   devices: readonly StorageSpec[],
   slots: readonly M2SlotSpec[],
-): boolean {
+  slotRank: (slot: M2SlotSpec) => number = () => 0,
+): readonly M2SlotSpec[] | undefined {
   const candidates = devices
-    .map((device) => slots.filter((slot) => slotSupports(device, slot)))
+    .map((device) =>
+      slots
+        .filter((slot) => slotSupports(device, slot))
+        .sort((left, right) => slotRank(left) - slotRank(right)),
+    )
     .sort((left, right) => left.length - right.length);
   const occupied = new Set<string>();
+  const assignment: M2SlotSpec[] = [];
 
   function assign(index: number): boolean {
     if (index === candidates.length) return true;
     for (const slot of candidates[index] ?? []) {
       if (occupied.has(slot.slotId)) continue;
       occupied.add(slot.slotId);
+      assignment.push(slot);
       if (assign(index + 1)) return true;
+      assignment.pop();
       occupied.delete(slot.slotId);
     }
     return false;
   }
 
-  return assign(0);
+  return assign(0) ? assignment : undefined;
 }
 
 export const m2SlotCompatibilityRule: EngineRule = {
@@ -65,12 +87,15 @@ export const m2SlotCompatibilityRule: EngineRule = {
         evidenceIds: [],
       };
     }
+    if (devices.some((device) => device.m2Key === undefined)) {
+      return unknown('M.2 device key data is missing');
+    }
 
     const [motherboard] = partsOf(build.parts, 'MOTHERBOARD');
     if (!motherboard?.spec.m2Slots) {
       return unknown('Motherboard M.2 slot data is missing');
     }
-    if (!hasCompleteAssignment(devices, motherboard.spec.m2Slots)) {
+    if (!findCompleteAssignment(devices, motherboard.spec.m2Slots)) {
       return {
         status: 'INCOMPATIBLE',
         summary: 'M.2 devices cannot be assigned to compatible slots',
@@ -109,9 +134,28 @@ export const m2SataSharingRule: EngineRule = {
     if (!motherboard?.spec.m2Slots) {
       return unknown('Motherboard M.2 sharing data is missing');
     }
-    const sharedPorts = motherboard.spec.m2Slots.flatMap(
-      (slot) => slot.sharedSataPortIds ?? [],
+    const m2Devices = storageParts
+      .map(({ spec }) => spec)
+      .filter((spec) => spec.m2FormFactor !== undefined);
+    if (m2Devices.some((device) => device.m2Key === undefined)) {
+      return unknown('M.2 device key data is missing');
+    }
+    const assignment = findCompleteAssignment(
+      m2Devices,
+      motherboard.spec.m2Slots,
+      (slot) => slot.sharedSataPortIds === undefined
+        ? 2
+        : slot.sharedSataPortIds.length > 0
+          ? 1
+          : 0,
     );
+    if (!assignment) {
+      return unknown('M.2 sharing could not be evaluated without a valid slot assignment');
+    }
+    if (assignment.some((slot) => slot.sharedSataPortIds === undefined)) {
+      return unknown('Selected M.2 slot sharing data is missing');
+    }
+    const sharedPorts = assignment.flatMap((slot) => slot.sharedSataPortIds ?? []);
     if (sharedPorts.length > 0) {
       return {
         status: 'CONDITIONAL',
@@ -165,6 +209,9 @@ export const pcieSlotCompatibilityRule: EngineRule = {
     const [motherboard] = partsOf(build.parts, 'MOTHERBOARD');
     if (!motherboard?.spec.pcieSlots) {
       return unknown('Motherboard PCIe slot data is missing');
+    }
+    if (installationContext.occupiedPcieSlotIds === undefined) {
+      return unknown('Occupied PCIe slot facts are missing');
     }
     const occupied = new Set(installationContext.occupiedPcieSlotIds);
     const assignment = findPcieAssignment(
@@ -271,6 +318,9 @@ export const pcieBandwidthAdvisoryRule: EngineRule = {
     const [motherboard] = partsOf(build.parts, 'MOTHERBOARD');
     if (!motherboard?.spec.pcieSlots) {
       return unknown('Motherboard PCIe slot data is missing');
+    }
+    if (installationContext.occupiedPcieSlotIds === undefined) {
+      return unknown('Occupied PCIe slot facts are missing');
     }
     const occupied = new Set(installationContext.occupiedPcieSlotIds);
     const assignment = findPcieAssignment(

@@ -139,7 +139,7 @@ export async function buildHttpServer(
     async () => ({
       status: 'ok' as const,
       service: 'pcpartcheck' as const,
-      canonicalSchemaVersion: '2.0.0',
+      canonicalSchemaVersion: '3.0.0',
     }),
   );
 

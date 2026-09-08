@@ -87,13 +87,28 @@ export const gpuClearanceRule: EngineRule = {
       return unknown('GPU clearance could not be evaluated');
     }
 
-    const frontStackMm = installationContext.radiators
-      .filter((radiator) => radiator.position === 'FRONT')
+    if (installationContext.radiators === undefined) {
+      return unknown('Radiator installation facts are missing');
+    }
+    const frontRadiators = installationContext.radiators.filter(
+      (radiator) => radiator.position === 'FRONT',
+    );
+    if (
+      frontRadiators.some(
+        (radiator) =>
+          radiator.radiatorThicknessMm === undefined ||
+          radiator.fanThicknessMm === undefined,
+      )
+    ) {
+      return unknown('Front radiator stack thickness is missing');
+    }
+    const frontStackMm = frontRadiators
       .reduce(
         (maximum, radiator) =>
           Math.max(
             maximum,
-            radiator.radiatorThicknessMm + radiator.fanThicknessMm,
+            (radiator.radiatorThicknessMm ?? 0) +
+              (radiator.fanThicknessMm ?? 0),
           ),
         0,
       );
@@ -158,6 +173,19 @@ export const radiatorMountRule: EngineRule = {
   evaluate: ({ build, installationContext, policy }) => {
     const [pcCase] = partsOf(build.parts, 'PC_CASE');
     const radiators = installationContext.radiators;
+    if (radiators === undefined) {
+      const hasUnplacedRadiator = partsOf(build.parts, 'CPU_COOLER').some(
+        (cooler) => cooler.spec.radiatorSizeMm !== undefined,
+      );
+      return hasUnplacedRadiator
+        ? unknown('Radiator installation facts are missing')
+        : {
+            status: 'NOT_CHECKED',
+            summary: 'No radiator is included in this build',
+            reasons: [],
+            evidenceIds: [],
+          };
+    }
     if (radiators.length === 0) {
       const hasUnplacedRadiator = partsOf(build.parts, 'CPU_COOLER').some(
         (cooler) => cooler.spec.radiatorSizeMm !== undefined,
@@ -190,6 +218,12 @@ export const radiatorMountRule: EngineRule = {
       }
       if (mount.maxCombinedThicknessMm === undefined) {
         return unknown('Radiator mount thickness limit is missing');
+      }
+      if (
+        radiator.radiatorThicknessMm === undefined ||
+        radiator.fanThicknessMm === undefined
+      ) {
+        return unknown('Installed radiator stack thickness is missing');
       }
 
       const result = evaluateClearance(

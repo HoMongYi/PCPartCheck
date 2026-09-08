@@ -28,11 +28,11 @@ Adapter는 실제 Schema와 표본 레코드를 함께 확인한 뒤 Canonical �
 | GPU | 지원 | length, slot width, PCIe generation/max link width, 필수 외부 전원 커넥터 | interface의 x값으로 physical connector를 추정하지 않음. TDP를 peak power로 바꾸지 않음. Adapter 입력 수와 권장 PSU 정보가 없음 |
 | CPUCooler | 조건부 지원 | socket, AIR/AIO type, height, radiator size | water-cooled인데 radiator size가 없으면 AIO와 custom loop를 구분할 수 없어 skip. 두께와 peak power가 없음 |
 | PCCase | 지원 | motherboard/PSU form factor, GPU/cooler/PSU clearance, expansion slot count | radiator 위치별 두께 한계가 없어 radiator mount는 생략 |
-| PSU | 지원 | form factor, rated power, length, 제공 커넥터 수 | ATX version과 12V-2x6 구분 정보가 없어 만들지 않음 |
-| Storage | 지원 | HDD/SATA SSD/NVMe SSD, capacity, interface, M.2 form factor | peak power와 M.2/SATA 공유 조건이 없음 |
-| CaseFan | Skip | size와 PWM 여부는 읽을 수 있음 | Canonical 필수 `thicknessMm`가 없고 connector/current/power 의미도 불완전해 `INSUFFICIENT_CANONICAL_FIELDS` |
+| PSU | 지원 | form factor, rated power, length, 제공 커넥터 수 | connector 객체가 없으면 빈 목록으로 바꾸지 않고 미확인으로 둠. ATX version과 12V-2x6 구분 정보는 만들지 않음 |
+| Storage | 지원 | HDD/SATA SSD/NVMe SSD, capacity, interface, M.2 form factor | 장치 M.2 Key, peak power, M.2/SATA 공유 조건이 없어 해당 값은 미확인으로 둠 |
+| CaseFan | 부분 지원 | size, PWM/DC connector | thickness/current/power가 없으면 채우지 않음. 두께가 필요한 판정은 `UNKNOWN`을 유지함 |
 
-지원하는 필드가 일부 비어 있으면 관련 Rule이 `UNKNOWN`을 반환한다. Provider가 값을 추정해서 PASS를 만들지는 않는다.
+지원하는 필드가 일부 비어 있으면 관련 Rule이 `UNKNOWN`을 반환한다. 원본 connector 객체가 있으면서 수량이 모두 0인 경우에만 빈 배열을 만들고, 객체 자체가 없으면 필드를 생략한다. Provider가 값을 추정해서 `PASS`를 만들지는 않는다.
 
 ## RAM.speed 처리
 

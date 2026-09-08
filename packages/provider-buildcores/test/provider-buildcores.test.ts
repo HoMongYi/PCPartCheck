@@ -72,7 +72,7 @@ describe('BuildCores snapshot import', () => {
       providerVersion: `commit:${commitSha}`,
       commitSha,
       schemaFingerprint,
-      counts: { imported: 8, failed: 1, skipped: 2 },
+      counts: { imported: 9, failed: 1, skipped: 1 },
       attribution: {
         license: 'ODC-By-1.0',
         attributionRequired: true,
@@ -100,7 +100,7 @@ describe('BuildCores snapshot import', () => {
 
     expect(result).toMatchObject({
       status: 'IMPORTED',
-      canonicalPart: { schemaVersion: '2.0.0', category: canonicalCategory },
+      canonicalPart: { schemaVersion: '3.0.0', category: canonicalCategory },
     });
   });
 
@@ -147,7 +147,7 @@ describe('BuildCores snapshot import', () => {
     expect(result?.canonicalPart).not.toHaveProperty('spec.peakPowerW');
   });
 
-  test('skips CaseFan because the source schema has no thickness field', async () => {
+  test('imports partial CaseFan data without inventing missing thickness', async () => {
     const snapshot = await loadSnapshot();
     const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
       snapshot,
@@ -157,13 +157,16 @@ describe('BuildCores snapshot import', () => {
       importedAt: '2026-09-08T00:00:00.000Z',
     });
 
-    expect(report.results).toContainEqual(
-      expect.objectContaining({
-        category: 'CaseFan',
-        status: 'SKIPPED',
-        reason: 'INSUFFICIENT_CANONICAL_FIELDS',
-      }),
-    );
+    const result = report.results.find(({ category }) => category === 'CaseFan');
+    expect(result).toMatchObject({
+      category: 'CaseFan',
+      status: 'IMPORTED',
+      canonicalPart: {
+        category: 'CASE_FAN',
+        spec: { diameterMm: 140, connector: 'PWM_4_PIN' },
+      },
+    });
+    expect(result?.canonicalPart).not.toHaveProperty('spec.thicknessMm');
   });
 
   test('maps RAM.speed only as a provider semantic alias to dataRateMtps', async () => {
@@ -182,7 +185,7 @@ describe('BuildCores snapshot import', () => {
     expect(memory).toMatchObject({
       status: 'IMPORTED',
       canonicalPart: {
-        schemaVersion: '2.0.0',
+        schemaVersion: '3.0.0',
         category: 'MEMORY',
         mpn: 'EX-6400-48',
         spec: {
@@ -204,7 +207,7 @@ describe('BuildCores snapshot import', () => {
           canonicalUnit: 'MT/s',
           mappingKind: 'SOURCE_SEMANTIC_ALIAS',
           mappingRule: 'BUILDCORES_RAM_SPEED_MARKETED_DATA_RATE',
-          mapperVersion: '2.0.0',
+          mapperVersion: '3.0.0',
         }),
       ]),
     });
@@ -238,7 +241,7 @@ describe('BuildCores snapshot import', () => {
     );
 
     expect(memory?.canonicalPart).toMatchObject({ partId: stablePartId });
-    expect(createPartId).toHaveBeenCalledTimes(7);
+    expect(createPartId).toHaveBeenCalledTimes(8);
   });
 
   test('preserves a CPU power limit as canonical peak power', async () => {

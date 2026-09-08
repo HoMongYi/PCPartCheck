@@ -5,7 +5,7 @@ import type { CanonicalBuild } from './build.js';
 import type { InstallationContext } from './installation-context.js';
 import type { AggregatedCompatibilityResult } from './result.js';
 
-export const SNAPSHOT_FORMAT_VERSION = '1.0.0' as const;
+export const SNAPSHOT_FORMAT_VERSION = '2.0.0' as const;
 
 export interface ProviderVersion {
   readonly providerId: string;
@@ -18,6 +18,7 @@ export interface EngineVersions {
   readonly engineVersion: string;
   readonly ruleSetVersion: string;
   readonly canonicalSchemaVersion: string;
+  readonly installationContextSchemaVersion: string;
   readonly identityMapperVersion: string;
   readonly providerVersions: readonly ProviderVersion[];
 }

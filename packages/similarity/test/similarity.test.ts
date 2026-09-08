@@ -30,7 +30,7 @@ const query: FieldEvidenceQuery & {
     { category: 'PC_CASE', partId: '22222222-2222-4222-8222-222222222222' },
   ],
   installationContext: {
-    schemaVersion: '1.0.0',
+    schemaVersion: '2.0.0',
     radiators: [
       {
         position: 'FRONT',

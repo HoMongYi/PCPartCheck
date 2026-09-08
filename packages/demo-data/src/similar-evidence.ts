@@ -5,7 +5,7 @@ import type {
 } from '@pcpartcheck/evidence';
 
 const queryContext: InstallationContext = {
-  schemaVersion: '1.0.0',
+  schemaVersion: '2.0.0',
   radiators: [
     {
       position: 'FRONT',

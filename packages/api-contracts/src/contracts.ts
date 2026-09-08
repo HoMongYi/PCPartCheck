@@ -54,14 +54,14 @@ const RecursiveJsonValueBoundarySchema = Type.Any({
 
 export const ApiInstallationContextSchema = Type.Object(
   {
-    schemaVersion: Type.Literal('1.0.0'),
-    radiators: Type.Array(InstalledRadiatorSchema),
-    hddCages: Type.Array(InstalledHddCageSchema),
-    gpuOrientation: GpuOrientationSchema,
-    occupiedPcieSlotIds: Type.Array(Type.String({ minLength: 1 }), {
-      uniqueItems: true,
-    }),
-    pciePower: PciePowerInstallationSchema,
+    schemaVersion: Type.Literal('2.0.0'),
+    radiators: Type.Optional(Type.Array(InstalledRadiatorSchema)),
+    hddCages: Type.Optional(Type.Array(InstalledHddCageSchema)),
+    gpuOrientation: Type.Optional(GpuOrientationSchema),
+    occupiedPcieSlotIds: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
+    ),
+    pciePower: Type.Optional(PciePowerInstallationSchema),
     installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
     customFacts: Type.Optional(
       Type.Record(Type.String(), RecursiveJsonValueBoundarySchema),
@@ -210,6 +210,7 @@ export const ResultSnapshotResponseSchema = Type.Object(
     ruleSetVersion: Type.String({ minLength: 1 }),
     policyVersion: Type.String({ minLength: 1 }),
     canonicalSchemaVersion: Type.String({ minLength: 1 }),
+    installationContextSchemaVersion: Type.String({ minLength: 1 }),
     identityMapperVersion: Type.String({ minLength: 1 }),
     providerVersions: Type.Array(ProviderVersionSchema),
     inputSnapshot: CompatibilityInputSnapshotSchema,

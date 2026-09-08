@@ -146,22 +146,40 @@ function orderedParts(parts: readonly FieldEvidencePartReference[]): readonly st
 function orderedInstallationContext(context: InstallationContext): unknown {
   return {
     schemaVersion: context.schemaVersion,
-    radiators: [...context.radiators].sort((left, right) =>
-      JSON.stringify(left).localeCompare(JSON.stringify(right)),
-    ),
-    hddCages: [...context.hddCages].sort((left, right) =>
-      left.cageId.localeCompare(right.cageId),
-    ),
-    gpuOrientation: context.gpuOrientation,
-    occupiedPcieSlotIds: [...context.occupiedPcieSlotIds].sort((left, right) =>
-      left.localeCompare(right),
-    ),
-    pciePower: {
-      independentCableCount: context.pciePower.independentCableCount,
-      native12VhpwrCableCount: context.pciePower.native12VhpwrCableCount,
-      native12V2x6CableCount: context.pciePower.native12V2x6CableCount,
-      adapterUsed: context.pciePower.adapterUsed,
-    },
+    ...(context.radiators === undefined
+      ? {}
+      : {
+          radiators: [...context.radiators].sort((left, right) =>
+            JSON.stringify(left).localeCompare(JSON.stringify(right)),
+          ),
+        }),
+    ...(context.hddCages === undefined
+      ? {}
+      : {
+          hddCages: [...context.hddCages].sort((left, right) =>
+            left.cageId.localeCompare(right.cageId),
+          ),
+        }),
+    ...(context.gpuOrientation === undefined
+      ? {}
+      : { gpuOrientation: context.gpuOrientation }),
+    ...(context.occupiedPcieSlotIds === undefined
+      ? {}
+      : {
+          occupiedPcieSlotIds: [...context.occupiedPcieSlotIds].sort(
+            (left, right) => left.localeCompare(right),
+          ),
+        }),
+    ...(context.pciePower === undefined
+      ? {}
+      : {
+          pciePower: {
+            independentCableCount: context.pciePower.independentCableCount,
+            native12VhpwrCableCount: context.pciePower.native12VhpwrCableCount,
+            native12V2x6CableCount: context.pciePower.native12V2x6CableCount,
+            adapterUsed: context.pciePower.adapterUsed,
+          },
+        }),
     installedBiosVersion: context.installedBiosVersion ?? null,
   };
 }

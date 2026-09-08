@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 import { FanConnectorTypeSchema, FanHeaderSpecSchema } from './fan-header-spec.js';
-import { M2SlotSpecSchema } from './m2-slot-spec.js';
+import { M2DeviceKeySchema, M2SlotSpecSchema } from './m2-slot-spec.js';
 import { PcieSlotSpecSchema } from './pcie-slot-spec.js';
 import {
   PowerAdapterRequirementSchema,
@@ -129,7 +129,7 @@ export const PsuSpecSchema = Type.Object(
     ratedPowerW: PositiveNumberSchema,
     lengthMm: Type.Optional(PositiveNumberSchema),
     atxVersion: Type.Optional(Type.String({ minLength: 1 })),
-    powerConnectors: Type.Array(PowerConnectorSpecSchema),
+    powerConnectors: Type.Optional(Type.Array(PowerConnectorSpecSchema)),
   },
   { additionalProperties: false },
 );
@@ -170,6 +170,7 @@ export const StorageSpecSchema = Type.Object(
         Type.Literal(22110),
       ]),
     ),
+    m2Key: Type.Optional(M2DeviceKeySchema),
     peakPowerW: Type.Optional(PositiveNumberSchema),
   },
   { additionalProperties: false },
@@ -179,7 +180,7 @@ export type StorageSpec = Static<typeof StorageSpecSchema>;
 export const CaseFanSpecSchema = Type.Object(
   {
     diameterMm: PositiveIntegerSchema,
-    thicknessMm: PositiveNumberSchema,
+    thicknessMm: Type.Optional(PositiveNumberSchema),
     connector: FanConnectorTypeSchema,
     maxCurrentA: Type.Optional(PositiveNumberSchema),
     rgbConnector: Type.Optional(RgbHeaderTypeSchema),

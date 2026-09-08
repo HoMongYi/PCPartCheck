@@ -3,7 +3,7 @@ import type { CanonicalIdentity, ExternalMapping } from '@pcpartcheck/identity';
 import type { ProviderAttribution, ProviderFieldAudit } from '@pcpartcheck/provider-sdk';
 
 export const BUILDCORES_PROVIDER_ID = 'buildcores-open-db' as const;
-export const BUILDCORES_MAPPER_VERSION = '2.0.0' as const;
+export const BUILDCORES_MAPPER_VERSION = '3.0.0' as const;
 
 export const BUILDCORES_ATTRIBUTION: ProviderAttribution = {
   sourceName: 'BuildCores OpenDB',

@@ -85,6 +85,44 @@ test('M.2 and PCIe slots expose structured capabilities', () => {
   ).toBe(false);
 });
 
+test('canonical 3.0 represents M.2 device keys and partial fan or PSU data', () => {
+  const canonical = exportedSchema('CanonicalPartSchema');
+
+  expect(Value.Check(canonical, {
+    schemaVersion: '3.0.0',
+    partId: '77777777-7777-4777-8777-777777777777',
+    category: 'STORAGE',
+    manufacturer: 'Example',
+    model: 'M-key SSD',
+    status: 'ACTIVE',
+    spec: {
+      storageType: 'NVME_SSD',
+      capacityGb: 1000,
+      interface: 'PCIE_NVME',
+      m2FormFactor: 2280,
+      m2Key: 'M',
+    },
+  })).toBe(true);
+  expect(Value.Check(canonical, {
+    schemaVersion: '3.0.0',
+    partId: '88888888-8888-4888-8888-888888888888',
+    category: 'CASE_FAN',
+    manufacturer: 'Example',
+    model: 'Partial Fan',
+    status: 'ACTIVE',
+    spec: { diameterMm: 120, connector: 'PWM_4_PIN' },
+  })).toBe(true);
+  expect(Value.Check(canonical, {
+    schemaVersion: '3.0.0',
+    partId: '99999999-9999-4999-8999-999999999999',
+    category: 'PSU',
+    manufacturer: 'Example',
+    model: 'Unknown Inventory PSU',
+    status: 'ACTIVE',
+    spec: { formFactor: 'ATX', ratedPowerW: 850 },
+  })).toBe(true);
+});
+
 test('radiator mounts accept new positive integer sizes without a schema release', () => {
   const schema = exportedSchema('RadiatorMountSpecSchema');
 
@@ -127,10 +165,10 @@ test('memory uses MT/s data rate and reserves MHz for actual clock', () => {
   ).toBe(false);
 });
 
-test('new canonical parts use schema version 2.0.0 and structured spec', () => {
+test('new canonical parts use schema version 3.0.0 and structured spec', () => {
   const schema = exportedSchema('CanonicalPartSchema');
   const cpu = {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     partId: 'a0dca831-d8d7-4f2c-9e81-d94d260dd5d7',
     category: 'CPU',
     manufacturer: 'Example',
@@ -197,7 +235,7 @@ test('PCIe add-in cards have physical and maximum link widths', () => {
 
   expect(
     Value.Check(schema, {
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       partId: '99999999-9999-4999-8999-999999999999',
       category: 'PCIE_CARD',
       manufacturer: 'Example',
@@ -216,7 +254,7 @@ test('PCIe add-in cards have physical and maximum link widths', () => {
 test('PSU spec can carry normalized physical length for case clearance', () => {
   const schema = exportedSchema('CanonicalPartSchema');
   const psu = {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     partId: '55555555-5555-4555-8555-555555555555',
     category: 'PSU',
     manufacturer: 'Example',
