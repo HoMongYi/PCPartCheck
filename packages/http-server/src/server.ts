@@ -288,8 +288,14 @@ export async function buildHttpServer(
       if (!await authorize(authorizationProvider, request, reply, 'FIELD_EVIDENCE_WRITE')) {
         return reply;
       }
+      const record = request.body as FieldEvidenceRecord;
+      if (record.status !== 'DRAFT') {
+        return reply.code(400).send(
+          error('INVALID_EVIDENCE_STATUS', 'New field evidence must start as DRAFT'),
+        );
+      }
       const created = await options.services.createFieldEvidence(
-        request.body as FieldEvidenceRecord,
+        record,
       );
       return reply.code(201).send(created);
     },

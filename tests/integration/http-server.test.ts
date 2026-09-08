@@ -78,7 +78,11 @@ async function createServer(
     checkCompatibilityBatch: vi.fn(async () => ({ results: [resultSnapshot] })),
     listParts: vi.fn(async () => ({ items: [], total: 0 })),
     getPart: vi.fn(async () => undefined),
-    getEvidence: vi.fn(async () => fieldEvidence),
+    getEvidence: vi.fn(async (evidenceId: string) =>
+      evidenceId === 'staff-only'
+        ? { ...fieldEvidence, evidenceId, visibility: 'STAFF_ONLY' as const }
+        : fieldEvidence,
+    ),
     findSimilarEvidence: vi.fn(async () => [
       {
         evidenceId: 'similar-1',
@@ -331,6 +335,12 @@ describe('Fastify reference API', () => {
       url: '/v1/field-evidence',
       payload: createPayload,
     });
+    const cannotSelfApprove = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence',
+      headers: { authorization: 'Bearer staff-token' },
+      payload: { ...createPayload, status: 'APPROVED' },
+    });
     const created = await server.inject({
       method: 'POST',
       url: '/v1/field-evidence',
@@ -349,10 +359,39 @@ describe('Fastify reference API', () => {
     });
 
     expect(unauthenticated.statusCode).toBe(401);
+    expect(cannotSelfApprove.statusCode).toBe(400);
     expect(created.statusCode).toBe(201);
     expect(forbidden.statusCode).toBe(403);
     expect(approved.statusCode).toBe(200);
     expect(approved.json()).toMatchObject({ status: 'APPROVED' });
+  });
+
+  test('maps staff-only evidence reads through the authorization provider', async () => {
+    const createAuthorizationProvider = (
+      httpServer as Readonly<Record<string, unknown>>
+    ).createMemoryAuthorizationProvider as (grants: readonly unknown[]) => unknown;
+    const authorizationProvider = createAuthorizationProvider([
+      {
+        credential: 'Bearer reader-token',
+        principalId: 'reader-1',
+        actions: ['FIELD_EVIDENCE_READ_STAFF'],
+      },
+    ]);
+    const { server } = await createServer({ authorizationProvider });
+
+    const denied = await server.inject({
+      method: 'GET',
+      url: '/v1/evidence/staff-only',
+    });
+    const allowed = await server.inject({
+      method: 'GET',
+      url: '/v1/evidence/staff-only',
+      headers: { authorization: 'Bearer reader-token' },
+    });
+
+    expect(denied.statusCode).toBe(401);
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json()).toMatchObject({ visibility: 'STAFF_ONLY' });
   });
 
   test('returns 429 and Retry-After through the memory rate limiter', async () => {
