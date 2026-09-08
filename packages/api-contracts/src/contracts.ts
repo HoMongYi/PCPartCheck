@@ -367,6 +367,8 @@ export const CapabilityResponseItemSchema = Type.Object(
     capabilityId: Type.String({ minLength: 1 }),
     title: Type.String({ minLength: 1 }),
     description: Type.Optional(Type.String()),
+    providerAvailable: Type.Boolean(),
+    defaultMode: CapabilityModeSchema,
   },
   { additionalProperties: false },
 );

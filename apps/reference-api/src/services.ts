@@ -59,6 +59,62 @@ for (const scenario of DEMO_SCENARIOS) {
   for (const part of scenario.input.build.parts) partCatalog.set(part.partId, part);
 }
 
+const requiredCapabilities = new Set([
+  'socket',
+  'memory-generation',
+  'memory-capacity',
+  'form-factor',
+  'gpu-clearance',
+  'cooler-clearance',
+  'psu-clearance',
+  'radiator',
+  'cooler-socket',
+  'storage',
+  'storage-sharing',
+  'pcie-slot',
+  'power-budget',
+  'psu-connector',
+]);
+
+const advisoryCapabilities = new Set([
+  'pcie-bandwidth',
+  'fan-headers',
+  'rgb',
+  'memory-rate',
+  'four-dimm-rate',
+]);
+
+const futureCapabilities: readonly CapabilityResponseItem[] = [
+  {
+    capabilityId: 'manufacturer-specification',
+    title: 'Manufacturer Specification',
+    description: '제조사 기술 사양 Provider가 연결되면 사용할 수 있습니다.',
+    providerAvailable: false,
+    defaultMode: 'DISABLED',
+  },
+  {
+    capabilityId: 'cpu-support',
+    title: 'CPU Support',
+    description: '제조사 CPU 지원 목록 Provider가 연결되면 사용할 수 있습니다.',
+    providerAvailable: false,
+    defaultMode: 'DISABLED',
+  },
+  {
+    capabilityId: 'bios',
+    title: 'BIOS',
+    description: 'BIOS 릴리스 Provider가 연결되면 사용할 수 있습니다.',
+    providerAvailable: false,
+    defaultMode: 'DISABLED',
+  },
+  {
+    capabilityId: 'qvl',
+    title: 'Memory QVL',
+    description: '메모리 QVL Provider가 연결되면 사용할 수 있습니다.',
+    providerAvailable: false,
+    defaultMode: 'DISABLED',
+  },
+];
+
 const capabilities: readonly CapabilityResponseItem[] = [
   ...new Map(
     allRules.map((rule) => [
@@ -69,18 +125,25 @@ const capabilities: readonly CapabilityResponseItem[] = [
           .split('-')
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' '),
+        providerAvailable: true,
+        defaultMode: requiredCapabilities.has(rule.capabilityId)
+          ? 'REQUIRED' as const
+          : advisoryCapabilities.has(rule.capabilityId)
+            ? 'ADVISORY' as const
+            : 'DISABLED' as const,
       },
     ]),
   ).values(),
+  ...futureCapabilities,
 ].sort((left, right) => left.capabilityId.localeCompare(right.capabilityId));
 
 const profiles: readonly PolicyProfile[] = [
   {
     profileId: 'reference-default',
     policyVersion: '1.0.0',
-    capabilities: capabilities.map(({ capabilityId }) => ({
+    capabilities: capabilities.map(({ capabilityId, defaultMode }) => ({
       capabilityId,
-      mode: 'REQUIRED',
+      mode: defaultMode,
     })),
   },
 ];

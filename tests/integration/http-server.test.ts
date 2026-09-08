@@ -116,7 +116,12 @@ async function createServer(
       },
     ]),
     listCapabilities: vi.fn(async () => [
-      { capabilityId: 'socket', title: 'Socket' },
+      {
+        capabilityId: 'socket',
+        title: 'Socket',
+        providerAvailable: true,
+        defaultMode: 'REQUIRED',
+      },
     ]),
     listProfiles: vi.fn(async () => [validCheckRequest.policyProfile]),
     createFieldEvidence: vi.fn(async (input, audit) => {
@@ -335,7 +340,12 @@ describe('Fastify reference API', () => {
       redaction: 'NONE',
     });
     expect(capabilities.json()).toEqual([
-      { capabilityId: 'socket', title: 'Socket' },
+      {
+        capabilityId: 'socket',
+        title: 'Socket',
+        providerAvailable: true,
+        defaultMode: 'REQUIRED',
+      },
     ]);
     expect(profiles.json()).toEqual([validCheckRequest.policyProfile]);
   });

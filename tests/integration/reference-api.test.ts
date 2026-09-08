@@ -77,4 +77,42 @@ describe('reference API composition', () => {
       },
     });
   });
+
+  test('publishes a safe reference policy and disabled future capabilities', async () => {
+    const factory = (referenceApi as Readonly<Record<string, unknown>>)
+      .createReferenceApiServices as () => {
+        listCapabilities(): Promise<readonly Readonly<Record<string, unknown>>[]>;
+        listProfiles(): Promise<readonly {
+          readonly profileId: string;
+          readonly capabilities: readonly {
+            readonly capabilityId: string;
+            readonly mode: string;
+          }[];
+        }[]>;
+      };
+    const services = factory();
+    const [capabilities, profiles] = await Promise.all([
+      services.listCapabilities(),
+      services.listProfiles(),
+    ]);
+    const modes = new Map(
+      profiles[0]?.capabilities.map(({ capabilityId, mode }) => [capabilityId, mode]),
+    );
+
+    expect(profiles[0]?.profileId).toBe('reference-default');
+    expect(modes.get('socket')).toBe('REQUIRED');
+    expect(modes.get('gpu-clearance')).toBe('REQUIRED');
+    expect(modes.get('pcie-bandwidth')).toBe('ADVISORY');
+    expect(modes.get('rgb')).toBe('ADVISORY');
+    for (const capabilityId of [
+      'manufacturer-specification', 'cpu-support', 'bios', 'qvl',
+    ]) {
+      expect(capabilities).toContainEqual(expect.objectContaining({
+        capabilityId,
+        providerAvailable: false,
+        defaultMode: 'DISABLED',
+      }));
+      expect(modes.get(capabilityId)).toBe('DISABLED');
+    }
+  });
 });
