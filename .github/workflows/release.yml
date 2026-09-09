@@ -12,12 +12,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install dependencies
+      - name: Set up pnpm and Node.js
         uses: pnpm/setup@c8e77b72cd6022852162c92aa10e7e72b7209c9b # v2
         with:
           runtime: node@24.13.1
           cache: true
-          require-lockfile: true
+          install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - run: pnpm version:check
       - run: pnpm pack:check
       - name: Inspect pending Changesets
