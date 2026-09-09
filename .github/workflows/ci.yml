@@ -44,3 +44,62 @@ jobs:
         if: runner.os == 'Windows'
         run: pnpm exec playwright install chromium
       - run: pnpm exec playwright test
+
+  docker-verify:
+    name: Docker runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify Docker and Compose
+        run: |
+          docker version
+          docker compose version
+      - name: Set up pnpm and Node.js
+        uses: pnpm/setup@c8e77b72cd6022852162c92aa10e7e72b7209c9b # v2
+        with:
+          runtime: node@24.13.1
+          cache: true
+          install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate Compose configuration
+        run: docker compose config
+      - name: Build container images
+        run: docker compose build
+      - name: Start Compose services
+        run: docker compose up -d
+      - name: Wait for healthy services
+        shell: bash
+        run: |
+          deadline=$((SECONDS + 120))
+          while (( SECONDS < deadline )); do
+            api_id="$(docker compose ps -q reference-api)"
+            web_id="$(docker compose ps -q demo-web)"
+            api_health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$api_id" 2>/dev/null || true)"
+            web_health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$web_id" 2>/dev/null || true)"
+            echo "reference-api=$api_health demo-web=$web_health"
+            if [[ "$api_health" == "healthy" && "$web_health" == "healthy" ]]; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "::error::Compose services did not become healthy within 120 seconds"
+          docker compose ps || true
+          docker compose logs reference-api || true
+          docker compose logs demo-web || true
+          exit 1
+      - name: Verify runtime endpoints
+        run: node scripts/verify-container-runtime.mjs
+      - name: Install Chromium with Linux system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run Playwright against Compose
+        env:
+          PCPARTCHECK_E2E_API_URL: http://127.0.0.1:3001
+          PCPARTCHECK_E2E_BASE_URL: http://127.0.0.1:3000
+        run: pnpm exec playwright test
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose down --volumes --remove-orphans
