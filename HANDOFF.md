@@ -2,87 +2,76 @@
 
 ## 현재 상태
 
-`feat/checkpoint-1-foundation` 브랜치에서 Pre-Checkpoint 4 Release Gate를 마쳤다. 구현 커밋은 `e98d0d0`이며 원격 feature branch에 push했다. merge하지 않았고 Checkpoint 4도 시작하지 않았다.
+Checkpoint 4의 Task 22~24 구현을 `feat/checkpoint-1-foundation` 브랜치에서 마쳤다. 공개 문서와 생성 산출물, Changesets와 version 검증, release metadata workflow, Reference API/Demo Web container 정의까지 들어갔다. 릴리스 코드 기준 commit은 `c406bdf916a180555458c39fabf95e088a3e20a4`다.
 
-공개 Schema 버전은 Canonical `3.0.0`, Installation Context `2.0.0`, Field Evidence `3.0.0`, Result Snapshot `2.0.0`이다. 엔진과 패키지 버전은 계속 `0.1.0`이다. Snapshot에는 Installation Context 버전도 따로 남으며, Canonical 또는 Installation Context 버전이 다르면 Replay를 거부한다.
+GitHub Actions run `34368010207`에서 Ubuntu와 Windows matrix가 모두 통과했다. `main`은 원격에 없고 GitHub default branch는 계속 `feat/checkpoint-1-foundation`이다. 개발 PC에 Docker CLI가 없어 container build/up/health/down을 실행하지 못했으므로, 사용자 지시대로 `main` 생성과 default branch 전환은 보류했다. tag와 GitHub Release도 만들지 않았다.
 
-## 고정한 Domain Contract
+## 공개 Version Contract
 
-- M.2 장치 Key는 `B / M / B_M`, 슬롯 Key는 `B / M / B_M / E`로 구분한다. B+M 장치는 B 또는 M 슬롯에 장착할 수 있지만, E 슬롯은 일반 SSD 호환 슬롯으로 보지 않는다. 장치 Key를 모르면 `UNKNOWN`이다.
-- M.2 슬롯의 `sharedSataPortIds`가 없으면 공유 정보를 모르는 상태다. `[]`일 때만 공유 포트가 없다고 확인된 것으로 본다.
-- M.2 SATA SSD는 별도 SATA 포트를 쓰는 장치로 세지 않는다. M.2 장치와 2.5인치 SATA SSD나 SATA HDD가 함께 있을 때만 포트 공유 조건을 확인한다.
-- Installation Context의 배치·케이블·두께 필드는 생략할 수 있다. `undefined`는 미확인, `0 / false / []`는 확인된 값이다. 필요한 정보가 없으면 Rule은 `PASS` 대신 `UNKNOWN`을 반환한다.
-- PSU 공급 커넥터와 부품 전원 요구도 같은 원칙을 쓴다. 필드 생략은 미확인이고 빈 배열은 없음이 확인된 상태다.
-- Case Fan은 지름과 커넥터를 확인할 수 있으면 Canonical Part로 만든다. 두께가 없다는 이유로 전체 레코드를 버리지 않으며, 두께가 필요한 판정만 `UNKNOWN`으로 남긴다.
-- Similar Failure는 참고 Evidence일 뿐 Compatibility Status나 Decision을 바꾸지 않는다.
+- 공개 package와 Engine: `0.1.0`
+- Canonical Schema: `3.0.0`
+- Installation Context: `2.0.0`
+- Field Evidence: `3.0.0`
+- Result Snapshot: `2.0.0`
+- Standard RuleSet: `0.1.0`
+- Identity Mapper: `1.1.0`
+- BuildCores Adapter: `3.0.0`
+- Reference Policy: `1.0.0`
 
-## Field Evidence 3.0
+각 숫자는 독립된 domain이다. `corepack pnpm version:check`가 package manifest, runtime constant, public export, Reference Snapshot metadata를 함께 비교한다.
 
-Field Evidence는 `DRAFT`일 때만 WRITE 권한으로 수정할 수 있다. `DRAFT → APPROVED`, `DRAFT → REJECTED`는 별도의 `FIELD_EVIDENCE_MODERATE` 권한으로만 처리한다. APPROVED와 REJECTED 기록은 수정, 재승인, 직접 승격할 수 없으며 HTTP API는 충돌을 409로 반환한다. 수정본이 필요하면 새 DRAFT를 만들고 `supersedesEvidenceId`로 이전 기록을 연결한다.
+## Task 22 — 문서와 실제 산출물
 
-모든 기록에는 `createdByPrincipalId`, `createdAt`, `updatedAt`이 들어간다. 승인·반려가 끝난 기록에는 moderator의 opaque principal ID와 처리 시각도 남는다. Outcome은 `ASSEMBLY_SUCCESS / ASSEMBLY_FAILURE / CONDITIONAL_SUCCESS`이고, 조건부 성공에는 조건이 적어도 한 개 필요하다.
+- README에 프로젝트 범위, 비범위, Status/Decision, UNKNOWN/NOT_CHECKED, Rule 영역, BuildCores, Exact/Similar Evidence, Power Budget, Optional LLM, SDK/API/Docker/Demo 사용법, 라이선스, 한계와 Roadmap을 정리했다.
+- 공개 문서 세트와 maintainer 문서를 `docs/`에 추가했다. 문장은 현재 구현 범위만 설명하며 정확도나 지원 범위를 과장하지 않았다.
+- `docs/diagrams/*.mmd` 두 파일이 Mermaid source of truth다. 생성한 `docs/assets/package-dependencies.svg`, `runtime-data-flow.svg`를 함께 추적한다.
+- 실제 production Demo를 Playwright로 열어 `docs/assets/demo-overview.png`를 만들었다. 화면에는 합성 조립 시나리오라는 점이 드러난다.
+- `docs/openapi.json`은 Reference API runtime의 `/openapi.json` 응답으로 생성한다. 현재 business operation은 15개다.
+- `docs:check-links`가 내부 Markdown link, 필수 문서·asset, OpenAPI endpoint 목록, 실제 workspace dependency와 Diagram edge를 검사한다.
 
-첨부는 `AttachmentReference`와 `AttachmentStorageProvider`로 분리했다. Evidence에는 media type, checksum, 크기, opaque storage key만 저장한다. 메모리 Reference 구현은 저장할 때 실제 bytes의 SHA-256과 크기를 검사하고, 읽을 때도 무결성을 다시 확인한다. 반환한 bytes는 복사본이라 호출자가 바꿔도 저장본에는 영향이 없다. 공개 Reference API의 합성 PNG도 실제 bytes에서 계산한 checksum을 사용한다.
+BuildCores 문서에서는 pinned/reference validation commit `a3795382f9e73c283e3592a8c972842fd0e72e22`, schema fingerprint, Task 17 조사 data commit `547b32703b370142f17b09c3047c80dc88ba5260`, 2026-09-09 확인 시점 upstream HEAD `932a6cfcb4fbe372bcd0ed600a7e127295d25dee`를 서로 다른 역할로 적었다. BuildCores 데이터는 ODC-By 1.0이며 PCPartCheck의 Apache-2.0 코드 라이선스에 포함되지 않는다.
 
-## Provider와 LLM 확장점
+## Task 23 — Version과 release 준비
 
-BuildCores Adapter는 CPU, Motherboard, RAM, GPU, PCCase, PSU, Storage를 지원하고 CPUCooler는 안전하게 유형을 확정할 수 있을 때만 가져온다. CaseFan은 부분 Canonical Part로 가져온다. Loader는 고정 snapshot의 `/schemas` 파일을 직접 읽어 SHA-256 fingerprint를 계산하고, 예상값과 다르면 import를 시작하지 않는다. 지원 category의 레코드는 그 snapshot의 공식 JSON Schema를 통과해야 Adapter로 넘어가며, 매핑 결과도 `CanonicalPartSchema` runtime 검증을 통과해야 `IMPORTED`가 된다. Source Schema 실패와 Canonical output 실패는 각각 `SOURCE_SCHEMA_VALIDATION_FAILED`, `CANONICAL_SCHEMA_VALIDATION_FAILED`로 구분한다.
+- Changesets `3.0.2`를 설정했다. 초기 `0.1.0` 기준선이라 version을 올리는 Changeset은 만들지 않았다.
+- 14개 공개 package version은 모두 `0.1.0`이다.
+- `pack:check`는 각 package의 실제 `pnpm pack --dry-run --json`을 확인한다.
+- release workflow는 version/pack/Changesets 상태와 release metadata까지만 다룬다. npm publish, `NPM_TOKEN`, tag, GitHub Release 생성 step은 없다.
+- GitHub Actions는 `actions/checkout` v7.0.1, `pnpm/setup` v2, `actions/upload-artifact` v4를 확인한 commit SHA로 고정했다. CI의 install은 별도 `pnpm install --frozen-lockfile` step이다.
 
-고정 BuildCores commit `a3795382f9e73c283e3592a8c972842fd0e72e22`의 `/schemas` 전체 31개 파일 fingerprint는 `sha256:a33ac0906b264ab6a3efc92bc4e27911852dcfe1d01fcdc50a23349dab3fb93c`다. 테스트 fixture에는 지원 category의 공식 Schema 9개를 원문 그대로 포함했고, 이 부분 snapshot의 fingerprint는 `sha256:2c0a21f04687effb7445574465a769ed83bb9f50149880157e7f2dea92505bf9`다. 줄바꿈은 Windows와 Linux에서 같은 값이 나오도록 LF로 정규화한다.
+## Task 24 — Container와 운영 경계
 
-RAM `speed`는 BuildCores 내부의 `SOURCE_SEMANTIC_ALIAS`로만 `dataRateMtps`에 옮기며 Unit Normalizer에는 MHz→MT/s 규칙이 없다.
+- `apps/reference-api/Dockerfile`, `apps/demo-web/Dockerfile`, root Compose 두 파일과 `.dockerignore`를 추가했다.
+- 두 image는 Node `24.13.1-bookworm-slim` multi-stage build이며 final stage는 `node` 사용자로 실행한다.
+- API final stage는 `pnpm deploy --prod` bundle, Web final stage는 Docker build에서만 만든 Next standalone output을 사용한다.
+- Compose는 API 3001, Web 3000을 loopback에 공개하고 service health와 API dependency를 설정한다.
+- 현재 Compose는 synthetic mode다. SQLite package를 연결하지 않으며 volume도 없다.
 
-Provider SDK에는 `ManufacturerSpecificationProvider`, `CpuSupportProvider`, `BiosReleaseProvider`, `MemoryQvlProvider` 계약과 runtime schema가 있다. 실제 Provider나 Scraper는 구현하지 않았다. Reference API에서 네 capability는 `providerAvailable: false`, `defaultMode: DISABLED`다.
+Passed — Docker 계약 unit test 4건, Next 일반 production build, Docker 환경 변수로 생성한 standalone server 경로 확인.
 
-선택형 LLM 계약에는 Structured Intent Parser와 Evidence Note Summarizer가 추가됐다. Parser는 제공된 Canonical Part ID만 사용할 수 있다. Summarizer는 원문을 보존하며 status, decision, verdict, outcome을 만들 수 없다. 기존 Result Explainer와 Identity Mapping Assistant도 결정론적 결과를 바꿀 수 없다.
+Passed — production deploy로 만든 Reference API portable bundle의 `/health`와 `/openapi.json` 로컬 확인.
 
-Similar Evidence 검색 범위는 HTTP 서버가 AuthorizationProvider 결과로만 정한다. 무인증 요청은 `PUBLIC`, STAFF read 권한은 `PUBLIC + STAFF_ONLY`, ADMIN read 권한은 세 visibility를 모두 볼 수 있다. request body에 임의 scope를 넣어도 권한이 올라가지 않는다. Similar 결과에는 계속 status나 decision이 없다.
+Not run — `docker compose build`, `up`, container health/API/Web/E2E, `down`. 원인: 이 개발 PC에 `docker` 실행 파일이 설치돼 있지 않다. 로컬 portable bundle 검증을 Docker 검증으로 간주하지 않는다.
 
-## 공개 API
+## 검증 결과
 
-- `GET /health`
-- `POST /v1/compatibility/check`
-- `POST /v1/compatibility/check-batch`
-- `GET /v1/parts` — `limit` 기본 50, 최대 100, `offset` 지원
-- `GET /v1/parts/:id`
-- `GET /v1/evidence/:id`
-- `POST /v1/field-evidence/similar`
-- `GET /v1/capabilities`
-- `GET /v1/profiles`
-- `POST /v1/field-evidence`
-- `PATCH /v1/field-evidence/:id`
-- `POST /v1/field-evidence/:id/approve`
-- `POST /v1/field-evidence/:id/reject`
-- `GET /v1/field-evidence/:id/attachments/:attachmentId`
-- `GET /v1/demo`
-- `GET /openapi.json`
-- `GET /docs/`
-
-`reference-default`는 소켓, 메모리 세대·용량, 폼팩터, 공간, 냉각, Storage, PCIe 물리 슬롯, Power Budget, PSU 커넥터를 REQUIRED로 둔다. PCIe 대역폭, Fan/RGB Header, Memory Rate, 4-DIMM Rate는 ADVISORY다. 아직 Provider가 없는 제조사 사양·CPU 지원·BIOS·QVL은 DISABLED다.
-
-## 이번 Release Gate 커밋
-
-- `e98d0d0 fix: enforce pre-release validation gates`
-
-## 검증 상태
-
+- Passed — `corepack pnpm install --frozen-lockfile`
 - Passed — `corepack pnpm check:deps`
 - Passed — `corepack pnpm typecheck`
 - Passed — `corepack pnpm lint`
-- Passed — `corepack pnpm test:unit`, 21개 파일 206건
+- Passed — `corepack pnpm test:unit`, 24개 파일 214건
 - Passed — `corepack pnpm test:integration`, 4개 파일 34건
-- Passed — `corepack pnpm build`, 전체 패키지와 앱 production build
+- Passed — `corepack pnpm build`
 - Passed — `corepack pnpm test:e2e`, desktop/mobile Chromium 2건
-- Passed — GitHub Actions run `34352421307`, Ubuntu 1분 27초·Windows 2분 13초
-- Passed — 변경 파일의 민감 파일명, private key, 로컬 절대경로, credential 형태 문자열 검사
+- Passed — `docs:openapi`, `docs:diagram`, `docs:screenshot`, `docs:check-links`; 재생성 후 tracked artifact diff 없음
+- Passed — `version:check`
+- Passed — `pack:check`, 공개 package 14개
+- Passed — README의 Reference API start, `/health`, `/openapi.json` 명령 흐름
+- Passed — GitHub Actions run `34368010207`: Ubuntu 2분 11초, Windows 2분 53초
+- Passed — 추적 파일명과 본문의 secret/credential/private key, 개인 로컬 경로, DB/build output, 회사 내부 데이터 marker 검사
 
-## 남은 데이터 한계
+## 남은 제약과 다음 단계
 
-- BuildCores에는 Storage 장치 Key, M.2/SATA 공유 조건, 메인보드 PCIe physical/electrical 구분, 추가 EPS의 필수 여부, Fan 두께가 없다. Adapter는 이를 추정하지 않으며 관련 판정은 `UNKNOWN`이 될 수 있다.
-- BIOS/QVL Provider, 실제 계정·권한 시스템, 분산 Attachment Storage는 계약만 있고 구현은 없다.
-- Similarity 가중치는 합성 fixture로 결정론만 확인했다. 실제 Evidence가 쌓이면 issue별 보정이 필요하다.
-- 공개 배포, Docker, README·Architecture Diagram·실제 Demo Screenshot·Changesets/SemVer 정리는 Checkpoint 4 범위다.
+BuildCores에는 Storage 장치 M.2 Key, M.2/SATA 공유 조건, PCIe physical/electrical 구분, 추가 EPS 필수 여부, Fan 두께가 없다. 제조사 CPU support/BIOS/QVL Provider, 운영 인증·rate limit·Attachment Storage, 실제 persistence composition도 아직 없다. Similarity weight는 합성 fixture로 결정론만 확인했다.
 
-## 다음 작업
-
-사용자 검토 전에는 Checkpoint 4를 시작하지 않는다. 승인받으면 Task 22~24의 공개 문서와 릴리스 품질 작업만 진행한다.
+다음 작업은 Docker가 있는 Linux 환경에서 `docker compose build`, `up -d`, API health/OpenAPI/Web, Compose 대상 Browser E2E, `down`을 차례로 확인하는 것이다. 모두 통과한 뒤에만 현재 검증된 release HEAD로 `main`을 만들고 default branch를 바꾼다. 그 `main`의 CI가 통과하면 `v0.1.0` tag와 GitHub Release 생성 승인을 다시 받는다. feature branch는 사용자 확인 전 삭제하지 않는다.
