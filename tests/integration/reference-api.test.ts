@@ -1,9 +1,89 @@
 import { describe, expect, test } from 'vitest';
 
+import type {
+  FieldEvidenceDraftInput,
+  FieldEvidenceModeration,
+  FieldEvidenceMutationAudit,
+  FieldEvidenceRecord,
+} from '../../packages/evidence/src/index.js';
 import * as referenceApi from '../../apps/reference-api/src/services.js';
 import { buildReferenceServer } from '../../apps/reference-api/src/server.js';
 
 describe('reference API composition', () => {
+  test('filters Similar Evidence by the server-derived read scope', async () => {
+    const factory = (referenceApi as Readonly<Record<string, unknown>>)
+      .createReferenceApiServices as () => {
+        createFieldEvidence(
+          input: FieldEvidenceDraftInput,
+          audit: FieldEvidenceMutationAudit,
+        ): Promise<FieldEvidenceRecord>;
+        moderateFieldEvidence(
+          evidenceId: string,
+          moderation: FieldEvidenceModeration,
+        ): Promise<FieldEvidenceRecord | undefined>;
+        findSimilarEvidence(
+          query: Readonly<Record<string, unknown>>,
+          readScope: 'PUBLIC' | 'STAFF' | 'ADMIN',
+        ): Promise<readonly { readonly evidenceId: string }[]>;
+      };
+    const services = factory();
+    const installationContext = { schemaVersion: '2.0.0' as const };
+    const visibilities = ['PUBLIC', 'STAFF_ONLY', 'ADMIN_ONLY'] as const;
+    for (const [index, visibility] of visibilities.entries()) {
+      const evidenceId = `scope-${visibility.toLocaleLowerCase('en-US')}`;
+      await services.createFieldEvidence(
+        {
+          evidenceId,
+          visibility,
+          redaction: 'NONE',
+          outcome: 'ASSEMBLY_FAILURE',
+          issueType: 'STORAGE_RESOURCE',
+          parts: [{
+            category: 'STORAGE',
+            partId: `30000000-0000-4000-8000-00000000000${index + 1}`,
+          }],
+          installationContext,
+          reportedAt: '2026-09-09T00:00:00.000Z',
+        },
+        { principalId: 'scope-writer', at: '2026-09-09T00:00:00.000Z' },
+      );
+      await services.moderateFieldEvidence(evidenceId, {
+        action: 'APPROVE',
+        principalId: 'scope-moderator',
+        at: '2026-09-09T00:01:00.000Z',
+      });
+    }
+    const query = {
+      issueType: 'STORAGE_RESOURCE',
+      parts: [{
+        category: 'STORAGE',
+        partId: '40000000-0000-4000-8000-000000000001',
+      }],
+      installationContext,
+    };
+
+    const publicMatches = await services.findSimilarEvidence(query, 'PUBLIC');
+    const staffMatches = await services.findSimilarEvidence(query, 'STAFF');
+    const adminMatches = await services.findSimilarEvidence(query, 'ADMIN');
+
+    expect(publicMatches.map(({ evidenceId }) => evidenceId)).toEqual([
+      'scope-public',
+    ]);
+    expect(staffMatches.map(({ evidenceId }) => evidenceId).sort()).toEqual([
+      'scope-public',
+      'scope-staff_only',
+    ]);
+    expect(adminMatches.map(({ evidenceId }) => evidenceId).sort()).toEqual([
+      'scope-admin_only',
+      'scope-public',
+      'scope-staff_only',
+    ]);
+    for (const match of adminMatches) {
+      expect(match).not.toHaveProperty('status');
+      expect(match).not.toHaveProperty('decision');
+    }
+  });
+
   test('evaluates every synthetic scenario and exposes only the top three similar records', async () => {
     const factory = (referenceApi as Readonly<Record<string, unknown>>)
       .createReferenceApiServices;

@@ -278,6 +278,15 @@ importers:
       '@pcpartcheck/unit-normalization':
         specifier: workspace:*
         version: link:../unit-normalization
+      '@sinclair/typebox':
+        specifier: 0.34.52
+        version: 0.34.52
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: 3.0.1
+        version: 3.0.1(ajv@8.20.0)
 
   packages/provider-sdk:
     dependencies:

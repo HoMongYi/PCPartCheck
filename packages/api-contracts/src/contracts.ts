@@ -356,6 +356,7 @@ export const SimilarEvidenceResponseSchema = Type.Array(
   { maxItems: 3 },
 );
 export type SimilarEvidenceResponse = readonly SimilarFieldEvidenceMatch[];
+export type SimilarEvidenceReadScope = 'PUBLIC' | 'STAFF' | 'ADMIN';
 
 export const CapabilityResponseItemSchema = Type.Object(
   {
@@ -531,7 +532,10 @@ export interface PcPartCheckApiServices {
   listParts(query: PartsQuery): Promise<PartsResponse>;
   getPart(partId: string): Promise<CanonicalPart | undefined>;
   getEvidence(evidenceId: string): Promise<RawFieldEvidence | FieldEvidenceRecord | undefined>;
-  findSimilarEvidence(query: SimilarEvidenceLookup): Promise<SimilarEvidenceResponse>;
+  findSimilarEvidence(
+    query: SimilarEvidenceLookup,
+    readScope: SimilarEvidenceReadScope,
+  ): Promise<SimilarEvidenceResponse>;
   listCapabilities(): Promise<readonly CapabilityResponseItem[]>;
   listProfiles(): Promise<ProfilesResponse>;
   createFieldEvidence(

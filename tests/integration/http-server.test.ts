@@ -83,7 +83,7 @@ async function createServer(
       {
         attachmentId: 'demo-photo-1',
         mediaType: 'image/png',
-        checksum: `sha256:${'a'.repeat(64)}`,
+        checksum: 'sha256:9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a',
         sizeBytes: 4,
         storageKey: 'memory:demo-photo-1',
       },
@@ -110,16 +110,42 @@ async function createServer(
       }
       return fieldEvidenceStore.get(evidenceId);
     }),
-    findSimilarEvidence: vi.fn(async () => [
-      {
-        evidenceId: 'similar-1',
-        issueType: 'PHYSICAL_CLEARANCE',
-        similarityScore: 0.925,
-        matchedFields: ['parts.PC_CASE'],
-        differences: ['measurements.gpu.lengthMm'],
-        reason: '같은 케이스와 라디에이터 배치를 사용했습니다.',
-      },
-    ]),
+    findSimilarEvidence: vi.fn(async (
+      _query: Readonly<Record<string, unknown>>,
+      readScope: 'PUBLIC' | 'STAFF' | 'ADMIN',
+    ) => {
+      const matches = [
+        {
+          evidenceId: 'similar-public',
+          issueType: 'PHYSICAL_CLEARANCE' as const,
+          similarityScore: 0.925,
+          matchedFields: ['parts.PC_CASE'],
+          differences: ['measurements.gpu.lengthMm'],
+          reason: '공개된 유사 조립 사례입니다.',
+        },
+        {
+          evidenceId: 'similar-staff',
+          issueType: 'PHYSICAL_CLEARANCE' as const,
+          similarityScore: 0.9,
+          matchedFields: ['parts.PC_CASE'],
+          differences: ['measurements.gpu.lengthMm'],
+          reason: '직원에게 공개된 유사 조립 사례입니다.',
+        },
+        {
+          evidenceId: 'similar-admin',
+          issueType: 'PHYSICAL_CLEARANCE' as const,
+          similarityScore: 0.875,
+          matchedFields: ['parts.PC_CASE'],
+          differences: ['measurements.gpu.lengthMm'],
+          reason: '관리자에게 공개된 유사 조립 사례입니다.',
+        },
+      ];
+      return readScope === 'ADMIN'
+        ? matches
+        : readScope === 'STAFF'
+          ? matches.slice(0, 2)
+          : matches.slice(0, 1);
+    }),
     listCapabilities: vi.fn(async () => [
       {
         capabilityId: 'socket',
@@ -286,30 +312,80 @@ describe('Fastify reference API', () => {
     expect(services.checkCompatibilityBatch).toHaveBeenCalledOnce();
   });
 
-  test('returns consumer-safe Similar Evidence fields without a decision', async () => {
-    const { server } = await createServer();
-    const response = await server.inject({
-      method: 'POST',
-      url: '/v1/field-evidence/similar',
-      payload: {
-        issueType: 'PHYSICAL_CLEARANCE',
-        parts: [],
-        installationContext: validCheckRequest.installationContext,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual([
+  test('derives Similar Evidence visibility from authorization without returning a decision', async () => {
+    const createAuthorizationProvider = (
+      httpServer as Readonly<Record<string, unknown>>
+    ).createMemoryAuthorizationProvider as (grants: readonly unknown[]) => unknown;
+    const authorizationProvider = createAuthorizationProvider([
       {
-        evidenceId: 'similar-1',
-        issueType: 'PHYSICAL_CLEARANCE',
-        similarityScore: 0.925,
-        matchedFields: ['parts.PC_CASE'],
-        differences: ['measurements.gpu.lengthMm'],
-        reason: '같은 케이스와 라디에이터 배치를 사용했습니다.',
+        credential: 'Bearer similar-staff-token',
+        principalId: 'similar-staff-reader',
+        actions: ['FIELD_EVIDENCE_READ_STAFF'],
+      },
+      {
+        credential: 'Bearer similar-admin-token',
+        principalId: 'similar-admin-reader',
+        actions: ['FIELD_EVIDENCE_READ_ADMIN'],
       },
     ]);
-    expect(response.json()).not.toHaveProperty('decision');
+    const { server, services } = await createServer({ authorizationProvider });
+    const payload = {
+      issueType: 'PHYSICAL_CLEARANCE',
+      parts: [],
+      installationContext: validCheckRequest.installationContext,
+    };
+    const publicResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/similar',
+      payload,
+    });
+    const staffResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/similar',
+      headers: { authorization: 'Bearer similar-staff-token' },
+      payload,
+    });
+    const adminResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/similar',
+      headers: { authorization: 'Bearer similar-admin-token' },
+      payload,
+    });
+    const forgedScope = await server.inject({
+      method: 'POST',
+      url: '/v1/field-evidence/similar',
+      payload: { ...payload, readScope: 'ADMIN' },
+    });
+
+    expect(publicResponse.statusCode).toBe(200);
+    expect(publicResponse.json()).toEqual([
+      expect.objectContaining({ evidenceId: 'similar-public' }),
+    ]);
+    expect(staffResponse.statusCode).toBe(200);
+    expect(staffResponse.json()).toEqual([
+      expect.objectContaining({ evidenceId: 'similar-public' }),
+      expect.objectContaining({ evidenceId: 'similar-staff' }),
+    ]);
+    expect(adminResponse.statusCode).toBe(200);
+    expect(adminResponse.json()).toEqual([
+      expect.objectContaining({ evidenceId: 'similar-public' }),
+      expect.objectContaining({ evidenceId: 'similar-staff' }),
+      expect.objectContaining({ evidenceId: 'similar-admin' }),
+    ]);
+    expect(forgedScope.statusCode).toBe(200);
+    expect(forgedScope.json()).toEqual([
+      expect.objectContaining({ evidenceId: 'similar-public' }),
+    ]);
+    expect(services.findSimilarEvidence).toHaveBeenNthCalledWith(1, payload, 'PUBLIC');
+    expect(services.findSimilarEvidence).toHaveBeenNthCalledWith(2, payload, 'STAFF');
+    expect(services.findSimilarEvidence).toHaveBeenNthCalledWith(3, payload, 'ADMIN');
+    expect(services.findSimilarEvidence).toHaveBeenNthCalledWith(4, payload, 'PUBLIC');
+    for (const response of [publicResponse, staffResponse, adminResponse]) {
+      for (const match of response.json() as readonly Readonly<Record<string, unknown>>[]) {
+        expect(match).not.toHaveProperty('status');
+        expect(match).not.toHaveProperty('decision');
+      }
+    }
   });
 
   test('returns engine-backed demo scenarios and reference-only similar evidence', async () => {

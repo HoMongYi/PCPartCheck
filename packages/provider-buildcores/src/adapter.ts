@@ -8,7 +8,7 @@ import type {
   PowerConnectorSpec,
   PsuFormFactor,
 } from '@pcpartcheck/core';
-import { CANONICAL_SCHEMA_VERSION } from '@pcpartcheck/core';
+import { CANONICAL_SCHEMA_VERSION, CanonicalPartSchema } from '@pcpartcheck/core';
 import {
   IDENTITY_MAPPER_VERSION,
   resolveCanonicalIdentity,
@@ -16,17 +16,21 @@ import {
 } from '@pcpartcheck/identity';
 import type { ProviderFieldAudit } from '@pcpartcheck/provider-sdk';
 import { normalizeUnit } from '@pcpartcheck/unit-normalization';
+import { Value } from '@sinclair/typebox/value';
 
 import {
   BUILDCORES_ATTRIBUTION,
   BUILDCORES_MAPPER_VERSION,
   BUILDCORES_PROVIDER_ID,
+  BUILDCORES_SUPPORTED_CATEGORIES,
   type BuildCoresImportReport,
   type BuildCoresImportResult,
   type BuildCoresSnapshotRecord,
   type ImportBuildCoresSnapshotOptions,
   type MappedBuildCoresPart,
 } from './types.js';
+
+const supportedCategories = new Set<string>(BUILDCORES_SUPPORTED_CATEGORIES);
 
 const uuidV4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -668,6 +672,12 @@ function mapRecord(record: BuildCoresSnapshotRecord):
   | { readonly status: 'SKIPPED'; readonly reason: string }
   | { readonly status: 'MAPPED'; readonly value: MappedBuildCoresPart; readonly externalId: string } {
   if (record.parseError) return { status: 'FAILED', reason: 'INVALID_JSON' };
+  if (!supportedCategories.has(record.category)) {
+    return { status: 'SKIPPED', reason: 'UNSUPPORTED_CATEGORY' };
+  }
+  if (record.sourceSchemaValidation?.valid !== true) {
+    return { status: 'FAILED', reason: 'SOURCE_SCHEMA_VALIDATION_FAILED' };
+  }
   const data = object(record.data);
   const externalId = nonEmptyString(data?.opendb_id);
   const common = data ? metadata(data) : undefined;
@@ -688,9 +698,7 @@ function mapRecord(record: BuildCoresSnapshotRecord):
       default: return 'UNSUPPORTED';
     }
   })();
-  if (mapped === 'UNSUPPORTED') {
-    return { status: 'SKIPPED', reason: 'UNSUPPORTED_CATEGORY' };
-  }
+  if (mapped === 'UNSUPPORTED') return { status: 'SKIPPED', reason: 'UNSUPPORTED_CATEGORY' };
   return mapped
     ? { status: 'MAPPED', value: mapped, externalId }
     : { status: 'SKIPPED', reason: 'INSUFFICIENT_CANONICAL_FIELDS' };
@@ -754,12 +762,20 @@ export function importBuildCoresSnapshot(
     if (identity.outcome === 'REVIEW_REQUIRED' || !identity.partId || !identity.mapping) {
       return resultWithoutImport(record, 'SKIPPED', 'IDENTITY_REVIEW_REQUIRED');
     }
+    const mappedPart = canonicalPart(mapped.value, identity.partId);
+    if (!Value.Check(CanonicalPartSchema, mappedPart)) {
+      return resultWithoutImport(
+        record,
+        'FAILED',
+        'CANONICAL_SCHEMA_VALIDATION_FAILED',
+      );
+    }
     return {
       status: 'IMPORTED',
       externalId: mapped.externalId,
       category: record.category,
       sourcePath: record.relativePath,
-      canonicalPart: canonicalPart(mapped.value, identity.partId),
+      canonicalPart: mappedPart,
       externalMapping: identity.mapping,
       audit: mapped.value.audit,
     };

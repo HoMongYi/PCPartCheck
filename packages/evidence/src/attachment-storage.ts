@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { AttachmentReferenceSchema, type AttachmentReference } from './field-evidence.js';
 import { Value } from '@sinclair/typebox/value';
 
@@ -19,6 +21,21 @@ function cloneAttachment(attachment: StoredAttachment): StoredAttachment {
   };
 }
 
+function assertAttachmentIntegrity(attachment: StoredAttachment): void {
+  if (
+    attachment.reference.sizeBytes !== undefined &&
+    attachment.reference.sizeBytes !== attachment.data.byteLength
+  ) {
+    throw new RangeError('Attachment byte length does not match sizeBytes');
+  }
+  const actualChecksum = `sha256:${createHash('sha256')
+    .update(attachment.data)
+    .digest('hex')}`;
+  if (actualChecksum !== attachment.reference.checksum) {
+    throw new TypeError('Attachment bytes do not match the declared SHA-256 checksum');
+  }
+}
+
 export function createMemoryAttachmentStorageProvider(): AttachmentStorageProvider {
   const attachments = new Map<string, StoredAttachment>();
   return {
@@ -26,12 +43,7 @@ export function createMemoryAttachmentStorageProvider(): AttachmentStorageProvid
       if (!Value.Check(AttachmentReferenceSchema, attachment.reference)) {
         throw new TypeError('Attachment reference does not match its public schema');
       }
-      if (
-        attachment.reference.sizeBytes !== undefined &&
-        attachment.reference.sizeBytes !== attachment.data.byteLength
-      ) {
-        throw new RangeError('Attachment byte length does not match sizeBytes');
-      }
+      assertAttachmentIntegrity(attachment);
       attachments.set(
         attachment.reference.attachmentId,
         cloneAttachment(attachment),
@@ -39,7 +51,9 @@ export function createMemoryAttachmentStorageProvider(): AttachmentStorageProvid
     },
     get: async (attachmentId) => {
       const attachment = attachments.get(attachmentId);
-      return attachment ? cloneAttachment(attachment) : undefined;
+      if (!attachment) return undefined;
+      assertAttachmentIntegrity(attachment);
+      return cloneAttachment(attachment);
     },
     delete: async (attachmentId) => attachments.delete(attachmentId),
   };

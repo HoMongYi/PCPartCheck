@@ -12,11 +12,15 @@ Task 17 구현을 시작한 2026-09-08에 BuildCores OpenDB의 `main`을 다시 
 
 Checkpoint 3.5에서 최신 main을 다시 읽었다. `/open-db/{category}/{UUID}.json`, `/schemas/*.schema.json`, `opendb_id`, `metadata`, `identifiers` 구조는 유지됐지만 데이터 commit은 갱신됐다. Schema tree는 이전 조사와 같은 SHA였다.
 
+Pre-Checkpoint 4 검증에는 `a3795382f9e73c283e3592a8c972842fd0e72e22`를 사용했다. 이 commit의 Schema tree도 `cc15acdcf8cec85d36b267fd6c201eff754cf624`로 같았다.
+
 ## Snapshot 방식
 
-Provider는 BuildCores 데이터 전체를 이 저장소에 복사하지 않는다. 사용자가 별도로 준비한 특정 commit의 local snapshot을 읽으며, import 결과에는 commit SHA와 Schema tree fingerprint가 남는다. 테스트는 같은 디렉터리 구조의 작은 fixture만 사용하므로 live 저장소가 없어도 실행할 수 있다.
+Provider는 BuildCores 데이터 전체를 이 저장소에 복사하지 않는다. 사용자가 별도로 준비한 특정 commit의 local snapshot을 읽고, 그 안의 `/schemas` 파일을 직접 검사한다. 파일 경로와 UTF-8 본문을 정렬한 뒤 SHA-256을 계산하며, Windows와 Linux에서 결과가 달라지지 않도록 줄바꿈은 LF로 맞춘다. 예상 fingerprint와 실제 값이 다르면 레코드를 읽기 전에 import를 중단한다.
 
-Adapter는 실제 Schema와 표본 레코드를 함께 확인한 뒤 Canonical 최소 필드를 안전하게 만들 수 있는 카테고리만 변환한다. 필수 원본이 없거나 뜻이 불분명하면 값을 채우지 않는다. Canonical 최소 필드가 부족하면 `SKIPPED`, source identity가 잘못됐으면 `FAILED`다.
+고정 commit의 `/schemas` 전체 31개 파일을 같은 방식으로 계산한 값은 `sha256:a33ac0906b264ab6a3efc92bc4e27911852dcfe1d01fcdc50a23349dab3fb93c`다. 오프라인 테스트 fixture에는 현재 지원하는 9개 category의 공식 Schema 원문만 포함했으며, 이 부분 snapshot의 fingerprint는 `sha256:2c0a21f04687effb7445574465a769ed83bb9f50149880157e7f2dea92505bf9`다.
+
+지원 category의 레코드는 해당 snapshot에 들어 있는 BuildCores JSON Schema를 통과해야 Adapter로 넘어간다. JSON 자체가 깨졌으면 `INVALID_JSON`, Source Schema를 어겼으면 `SOURCE_SCHEMA_VALIDATION_FAILED`로 기록한다. 매핑이 끝난 값도 `CanonicalPartSchema` runtime 검증을 통과해야 `IMPORTED`가 되며, 여기서 실패하면 `CANONICAL_SCHEMA_VALIDATION_FAILED`로 구분한다. 필수 원본이 없거나 뜻이 불분명한 값은 추정하지 않고, Canonical 최소 필드가 부족하면 `SKIPPED`로 남긴다.
 
 ## 카테고리별 Coverage
 

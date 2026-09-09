@@ -122,8 +122,10 @@ export const m2SataSharingRule: EngineRule = {
     const hasM2 = storageParts.some(
       ({ spec }) => spec.m2FormFactor !== undefined,
     );
-    const hasSata = storageParts.some(({ spec }) => spec.interface === 'SATA');
-    if (!hasM2 || !hasSata) {
+    const hasMotherboardSataPortDevice = storageParts.some(
+      ({ spec }) => spec.interface === 'SATA' && spec.m2FormFactor === undefined,
+    );
+    if (!hasM2 || !hasMotherboardSataPortDevice) {
       return {
         status: 'PASS',
         summary: 'No active M.2 and SATA sharing combination was found',

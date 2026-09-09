@@ -4,6 +4,17 @@ import type { ProviderAttribution, ProviderFieldAudit } from '@pcpartcheck/provi
 
 export const BUILDCORES_PROVIDER_ID = 'buildcores-open-db' as const;
 export const BUILDCORES_MAPPER_VERSION = '3.0.0' as const;
+export const BUILDCORES_SUPPORTED_CATEGORIES = [
+  'CPU',
+  'CPUCooler',
+  'CaseFan',
+  'GPU',
+  'Motherboard',
+  'PCCase',
+  'PSU',
+  'RAM',
+  'Storage',
+] as const;
 
 export const BUILDCORES_ATTRIBUTION: ProviderAttribution = {
   sourceName: 'BuildCores OpenDB',
@@ -20,6 +31,10 @@ export interface BuildCoresSnapshotRecord {
   readonly relativePath: string;
   readonly data?: JsonValue;
   readonly parseError?: string;
+  readonly sourceSchemaValidation?: {
+    readonly valid: boolean;
+    readonly errors: readonly string[];
+  };
 }
 
 export interface BuildCoresSnapshot {
@@ -35,6 +50,20 @@ export interface LoadBuildCoresSnapshotOptions {
   readonly commitSha: string;
   readonly schemaFingerprint: string;
   readonly categories?: readonly string[];
+}
+
+export class BuildCoresSchemaFingerprintMismatchError extends Error {
+  readonly code = 'BUILDCORES_SCHEMA_FINGERPRINT_MISMATCH';
+
+  constructor(
+    readonly expectedFingerprint: string,
+    readonly actualFingerprint: string,
+  ) {
+    super(
+      `BuildCores schema fingerprint mismatch: expected ${expectedFingerprint}, received ${actualFingerprint}`,
+    );
+    this.name = 'BuildCoresSchemaFingerprintMismatchError';
+  }
 }
 
 export type BuildCoresImportStatus = 'IMPORTED' | 'FAILED' | 'SKIPPED';

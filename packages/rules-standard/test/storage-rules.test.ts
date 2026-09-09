@@ -144,6 +144,17 @@ describe('m2SlotCompatibilityRule', () => {
 });
 
 describe('m2SataSharingRule', () => {
+  test('does not count an M.2 SATA SSD as a separate motherboard SATA port device', async () => {
+    const result = await exportedRule('m2SataSharingRule').evaluate(
+      context([
+        storage(1, 'SATA', 2280, 'B_M'),
+        board([flexibleSlot]),
+      ], 'storage-sharing'),
+    );
+
+    expect(result.status).toBe('PASS');
+  });
+
   test('returns unknown when a selected compatible slot omits sharing data', async () => {
     const result = await exportedRule('m2SataSharingRule').evaluate(
       context([storage(1), storage(2, 'SATA', null), board([nvmeOnlySlot])], 'storage-sharing'),
@@ -176,6 +187,29 @@ describe('m2SataSharingRule', () => {
     expect(result).toMatchObject({
       status: 'CONDITIONAL',
       conditions: [{ code: 'VERIFY_SATA_PORT_SHARING' }],
+    });
+  });
+
+  test('returns conditional for an NVMe M.2 drive plus a SATA HDD on a shared port', async () => {
+    const sataHdd = {
+      ...storage(2, 'SATA', null),
+      spec: {
+        storageType: 'HDD',
+        capacityGb: 4000,
+        interface: 'SATA',
+      },
+    } as CanonicalPart;
+    const result = await exportedRule('m2SataSharingRule').evaluate(
+      context([
+        storage(1),
+        sataHdd,
+        board([{ ...nvmeOnlySlot, sharedSataPortIds: ['SATA_3'] }]),
+      ], 'storage-sharing'),
+    );
+
+    expect(result).toMatchObject({
+      status: 'CONDITIONAL',
+      reasons: ['Potentially shared ports: SATA_3'],
     });
   });
 });

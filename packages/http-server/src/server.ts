@@ -39,6 +39,7 @@ import {
   type PcPartCheckApiServices,
   type RateLimitProvider,
   type SimilarEvidenceLookup,
+  type SimilarEvidenceReadScope,
 } from '@pcpartcheck/api-contracts';
 import { Value } from '@sinclair/typebox/value';
 import Fastify, {
@@ -109,6 +110,24 @@ async function authorizeEvidenceRead(
       ? 'FIELD_EVIDENCE_READ_ADMIN'
       : 'FIELD_EVIDENCE_READ_STAFF',
   ));
+}
+
+async function resolveSimilarEvidenceReadScope(
+  provider: AuthorizationProvider,
+  request: FastifyRequest,
+): Promise<SimilarEvidenceReadScope> {
+  const credential = request.headers.authorization;
+  if (!credential) return 'PUBLIC';
+  const admin = await provider.authorize({
+    credential,
+    action: 'FIELD_EVIDENCE_READ_ADMIN',
+  });
+  if (admin.allowed) return 'ADMIN';
+  const staff = await provider.authorize({
+    credential,
+    action: 'FIELD_EVIDENCE_READ_STAFF',
+  });
+  return staff.allowed ? 'STAFF' : 'PUBLIC';
 }
 
 function isFieldEvidenceConflict(
@@ -261,10 +280,16 @@ export async function buildHttpServer(
         response: { 200: SimilarEvidenceResponseSchema, ...commonErrors },
       },
     },
-    async (request) =>
-      options.services.findSimilarEvidence(
+    async (request) => {
+      const readScope = await resolveSimilarEvidenceReadScope(
+        authorizationProvider,
+        request,
+      );
+      return options.services.findSimilarEvidence(
         request.body as SimilarEvidenceLookup,
-      ),
+        readScope,
+      );
+    },
   );
 
   server.get(

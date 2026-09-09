@@ -1,8 +1,11 @@
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { PartId } from '@pcpartcheck/core';
 import type { ExternalMapping } from '@pcpartcheck/identity';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as provider from '../src/index.js';
 
@@ -17,6 +20,7 @@ interface ImportResult {
   readonly status: 'IMPORTED' | 'FAILED' | 'SKIPPED';
   readonly externalId?: string;
   readonly category: string;
+  readonly sourcePath: string;
   readonly canonicalPart?: Readonly<Record<string, unknown>>;
   readonly externalMapping?: ExternalMapping;
   readonly audit: readonly Readonly<Record<string, unknown>>[];
@@ -45,17 +49,120 @@ const snapshotRoot = fileURLToPath(
   new URL('./fixtures/snapshot', import.meta.url),
 );
 const commitSha = 'a3795382f9e73c283e3592a8c972842fd0e72e22';
-const schemaFingerprint = 'git-tree:cc15acdcf8cec85d36b267fd6c201eff754cf624';
+const schemaFingerprint = 'sha256:2c0a21f04687effb7445574465a769ed83bb9f50149880157e7f2dea92505bf9';
+const temporarySnapshots: string[] = [];
 
-async function loadSnapshot(): Promise<LoadedSnapshot> {
+afterEach(async () => {
+  await Promise.all(
+    temporarySnapshots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
+});
+
+async function copySnapshotFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'pcpartcheck-buildcores-'));
+  temporarySnapshots.push(root);
+  await cp(snapshotRoot, root, { recursive: true });
+  return root;
+}
+
+async function loadSnapshot(
+  rootDir = snapshotRoot,
+  expectedSchemaFingerprint = schemaFingerprint,
+): Promise<LoadedSnapshot> {
   return exportedFunction<SnapshotLoader>('loadBuildCoresSnapshot')({
-    rootDir: snapshotRoot,
+    rootDir,
     commitSha,
-    schemaFingerprint,
+    schemaFingerprint: expectedSchemaFingerprint,
   });
 }
 
 describe('BuildCores snapshot import', () => {
+  test('continues only when the expected fingerprint matches the pinned schema files', async () => {
+    const snapshot = await loadSnapshot();
+
+    expect(snapshot.schemaFingerprint).toBe(schemaFingerprint);
+    expect(snapshot.records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: 'CPU',
+          sourceSchemaValidation: { valid: true, errors: [] },
+        }),
+      ]),
+    );
+  });
+
+  test('stops snapshot loading when the expected schema fingerprint differs', async () => {
+    await expect(
+      loadSnapshot(snapshotRoot, `sha256:${'f'.repeat(64)}`),
+    ).rejects.toMatchObject({
+      code: 'BUILDCORES_SCHEMA_FINGERPRINT_MISMATCH',
+      expectedFingerprint: `sha256:${'f'.repeat(64)}`,
+      actualFingerprint: schemaFingerprint,
+    });
+  });
+
+  test('detects a change in the pinned schema file contents', async () => {
+    const root = await copySnapshotFixture();
+    const cpuSchemaPath = join(root, 'schemas', 'CPU.schema.json');
+    const schema = await readFile(cpuSchemaPath, 'utf8');
+    await writeFile(cpuSchemaPath, `${schema}\n`, 'utf8');
+
+    await expect(loadSnapshot(root)).rejects.toMatchObject({
+      code: 'BUILDCORES_SCHEMA_FINGERPRINT_MISMATCH',
+      expectedFingerprint: schemaFingerprint,
+      actualFingerprint: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+    });
+  });
+
+  test('fails a JSON record that violates its pinned BuildCores schema before mapping', async () => {
+    const root = await copySnapshotFixture();
+    const sourcePath = join(root, 'open-db', 'CPU', 'schema-invalid.json');
+    await writeFile(
+      sourcePath,
+      JSON.stringify({
+        opendb_id: '99999999-9999-4999-8999-999999999999',
+        metadata: 'not-an-object',
+      }),
+      'utf8',
+    );
+    const snapshot = await loadSnapshot(root);
+    const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
+      snapshot,
+      existingMappings: [],
+      canonicalIdentities: [],
+      createPartId: () => '99999999-9999-4999-8999-999999999999',
+      importedAt: '2026-09-08T00:00:00.000Z',
+    });
+    const invalid = report.results.find(
+      ({ sourcePath: resultPath }) => resultPath.endsWith('schema-invalid.json'),
+    );
+
+    expect(invalid).toMatchObject({
+      status: 'FAILED',
+      reason: 'SOURCE_SCHEMA_VALIDATION_FAILED',
+    });
+    expect(invalid).not.toHaveProperty('canonicalPart');
+  });
+
+  test('does not import an adapter result rejected by CanonicalPartSchema', async () => {
+    const snapshot = await loadSnapshot();
+    const report = exportedFunction<SnapshotImporter>('importBuildCoresSnapshot')({
+      snapshot,
+      existingMappings: [],
+      canonicalIdentities: [],
+      createPartId: () => 'not-a-canonical-part-id',
+      importedAt: '2026-09-08T00:00:00.000Z',
+    });
+    const cpu = report.results.find(({ category }) => category === 'CPU');
+
+    expect(cpu).toMatchObject({
+      status: 'FAILED',
+      reason: 'CANONICAL_SCHEMA_VALIDATION_FAILED',
+    });
+    expect(cpu).not.toHaveProperty('canonicalPart');
+    expect(cpu).not.toHaveProperty('externalMapping');
+  });
+
   test('loads an offline snapshot and reports imported, failed, and skipped records', async () => {
     const snapshot = await loadSnapshot();
     let nextId = 1;

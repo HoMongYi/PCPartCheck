@@ -4,6 +4,7 @@ import type {
   FieldEvidencePatch,
   PartsQuery,
   PcPartCheckApiServices,
+  SimilarEvidenceReadScope,
 } from '@pcpartcheck/api-contracts';
 import {
   CANONICAL_SCHEMA_VERSION,
@@ -25,6 +26,7 @@ import {
   moderateFieldEvidence,
   patchDraftFieldEvidence,
 } from '@pcpartcheck/evidence';
+import type { FieldEvidenceVisibility } from '@pcpartcheck/evidence';
 import { calculatePowerBudget, powerRules } from '@pcpartcheck/power';
 import {
   advisoryRules,
@@ -147,6 +149,14 @@ const profiles: readonly PolicyProfile[] = [
     })),
   },
 ];
+
+const visibleEvidenceByReadScope: Readonly<
+  Record<SimilarEvidenceReadScope, ReadonlySet<FieldEvidenceVisibility>>
+> = {
+  PUBLIC: new Set(['PUBLIC']),
+  STAFF: new Set(['PUBLIC', 'STAFF_ONLY']),
+  ADMIN: new Set(['PUBLIC', 'STAFF_ONLY', 'ADMIN_ONLY']),
+};
 
 function selectRules(ruleIds: readonly string[]): readonly EngineRule[] {
   return ruleIds.map((ruleId) => {
@@ -293,11 +303,11 @@ export function createReferenceApiServices(): PcPartCheckApiServices {
     },
     getPart: async (partId) => partCatalog.get(partId),
     getEvidence: async (evidenceId) => fieldEvidence.get(evidenceId),
-    findSimilarEvidence: async (query) =>
+    findSimilarEvidence: async (query, readScope) =>
       rankSimilarFieldEvidence({
         query,
         records: [...fieldEvidence.values()].filter(
-          (record) => record.visibility === 'PUBLIC',
+          (record) => visibleEvidenceByReadScope[readScope].has(record.visibility),
         ),
       }),
     listCapabilities: async () => capabilities,
