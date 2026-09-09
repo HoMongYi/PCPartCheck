@@ -2,7 +2,7 @@
 
 ## 현재 상태
 
-`feat/checkpoint-1-foundation` 브랜치에서 Checkpoint 3.6 — Final Domain Integrity Hardening을 마쳤다. 구현 HEAD는 `90e22f3`이며 원격 feature branch에 push했다. merge하지 않았고 Checkpoint 4도 시작하지 않았다.
+`feat/checkpoint-1-foundation` 브랜치에서 Pre-Checkpoint 4 Release Gate를 마쳤다. 구현 커밋은 `e98d0d0`이며 원격 feature branch에 push했다. merge하지 않았고 Checkpoint 4도 시작하지 않았다.
 
 공개 Schema 버전은 Canonical `3.0.0`, Installation Context `2.0.0`, Field Evidence `3.0.0`, Result Snapshot `2.0.0`이다. 엔진과 패키지 버전은 계속 `0.1.0`이다. Snapshot에는 Installation Context 버전도 따로 남으며, Canonical 또는 Installation Context 버전이 다르면 Replay를 거부한다.
 
@@ -10,6 +10,7 @@
 
 - M.2 장치 Key는 `B / M / B_M`, 슬롯 Key는 `B / M / B_M / E`로 구분한다. B+M 장치는 B 또는 M 슬롯에 장착할 수 있지만, E 슬롯은 일반 SSD 호환 슬롯으로 보지 않는다. 장치 Key를 모르면 `UNKNOWN`이다.
 - M.2 슬롯의 `sharedSataPortIds`가 없으면 공유 정보를 모르는 상태다. `[]`일 때만 공유 포트가 없다고 확인된 것으로 본다.
+- M.2 SATA SSD는 별도 SATA 포트를 쓰는 장치로 세지 않는다. M.2 장치와 2.5인치 SATA SSD나 SATA HDD가 함께 있을 때만 포트 공유 조건을 확인한다.
 - Installation Context의 배치·케이블·두께 필드는 생략할 수 있다. `undefined`는 미확인, `0 / false / []`는 확인된 값이다. 필요한 정보가 없으면 Rule은 `PASS` 대신 `UNKNOWN`을 반환한다.
 - PSU 공급 커넥터와 부품 전원 요구도 같은 원칙을 쓴다. 필드 생략은 미확인이고 빈 배열은 없음이 확인된 상태다.
 - Case Fan은 지름과 커넥터를 확인할 수 있으면 Canonical Part로 만든다. 두께가 없다는 이유로 전체 레코드를 버리지 않으며, 두께가 필요한 판정만 `UNKNOWN`으로 남긴다.
@@ -21,15 +22,21 @@ Field Evidence는 `DRAFT`일 때만 WRITE 권한으로 수정할 수 있다. `DR
 
 모든 기록에는 `createdByPrincipalId`, `createdAt`, `updatedAt`이 들어간다. 승인·반려가 끝난 기록에는 moderator의 opaque principal ID와 처리 시각도 남는다. Outcome은 `ASSEMBLY_SUCCESS / ASSEMBLY_FAILURE / CONDITIONAL_SUCCESS`이고, 조건부 성공에는 조건이 적어도 한 개 필요하다.
 
-첨부는 `AttachmentReference`와 `AttachmentStorageProvider`로 분리했다. Evidence에는 media type, checksum, 크기, opaque storage key만 저장한다. 공개 Reference API는 합성 PNG 한 장을 메모리 저장소에서 제공하며, 첨부 조회도 Evidence visibility와 같은 권한 경계를 거친다.
+첨부는 `AttachmentReference`와 `AttachmentStorageProvider`로 분리했다. Evidence에는 media type, checksum, 크기, opaque storage key만 저장한다. 메모리 Reference 구현은 저장할 때 실제 bytes의 SHA-256과 크기를 검사하고, 읽을 때도 무결성을 다시 확인한다. 반환한 bytes는 복사본이라 호출자가 바꿔도 저장본에는 영향이 없다. 공개 Reference API의 합성 PNG도 실제 bytes에서 계산한 checksum을 사용한다.
 
 ## Provider와 LLM 확장점
 
-BuildCores Adapter는 CPU, Motherboard, RAM, GPU, PCCase, PSU, Storage를 지원하고 CPUCooler는 안전하게 유형을 확정할 수 있을 때만 가져온다. CaseFan은 부분 Canonical Part로 가져온다. RAM `speed`는 BuildCores 내부의 `SOURCE_SEMANTIC_ALIAS`로만 `dataRateMtps`에 옮기며 Unit Normalizer에는 MHz→MT/s 규칙이 없다.
+BuildCores Adapter는 CPU, Motherboard, RAM, GPU, PCCase, PSU, Storage를 지원하고 CPUCooler는 안전하게 유형을 확정할 수 있을 때만 가져온다. CaseFan은 부분 Canonical Part로 가져온다. Loader는 고정 snapshot의 `/schemas` 파일을 직접 읽어 SHA-256 fingerprint를 계산하고, 예상값과 다르면 import를 시작하지 않는다. 지원 category의 레코드는 그 snapshot의 공식 JSON Schema를 통과해야 Adapter로 넘어가며, 매핑 결과도 `CanonicalPartSchema` runtime 검증을 통과해야 `IMPORTED`가 된다. Source Schema 실패와 Canonical output 실패는 각각 `SOURCE_SCHEMA_VALIDATION_FAILED`, `CANONICAL_SCHEMA_VALIDATION_FAILED`로 구분한다.
+
+고정 BuildCores commit `a3795382f9e73c283e3592a8c972842fd0e72e22`의 `/schemas` 전체 31개 파일 fingerprint는 `sha256:a33ac0906b264ab6a3efc92bc4e27911852dcfe1d01fcdc50a23349dab3fb93c`다. 테스트 fixture에는 지원 category의 공식 Schema 9개를 원문 그대로 포함했고, 이 부분 snapshot의 fingerprint는 `sha256:2c0a21f04687effb7445574465a769ed83bb9f50149880157e7f2dea92505bf9`다. 줄바꿈은 Windows와 Linux에서 같은 값이 나오도록 LF로 정규화한다.
+
+RAM `speed`는 BuildCores 내부의 `SOURCE_SEMANTIC_ALIAS`로만 `dataRateMtps`에 옮기며 Unit Normalizer에는 MHz→MT/s 규칙이 없다.
 
 Provider SDK에는 `ManufacturerSpecificationProvider`, `CpuSupportProvider`, `BiosReleaseProvider`, `MemoryQvlProvider` 계약과 runtime schema가 있다. 실제 Provider나 Scraper는 구현하지 않았다. Reference API에서 네 capability는 `providerAvailable: false`, `defaultMode: DISABLED`다.
 
 선택형 LLM 계약에는 Structured Intent Parser와 Evidence Note Summarizer가 추가됐다. Parser는 제공된 Canonical Part ID만 사용할 수 있다. Summarizer는 원문을 보존하며 status, decision, verdict, outcome을 만들 수 없다. 기존 Result Explainer와 Identity Mapping Assistant도 결정론적 결과를 바꿀 수 없다.
+
+Similar Evidence 검색 범위는 HTTP 서버가 AuthorizationProvider 결과로만 정한다. 무인증 요청은 `PUBLIC`, STAFF read 권한은 `PUBLIC + STAFF_ONLY`, ADMIN read 권한은 세 visibility를 모두 볼 수 있다. request body에 임의 scope를 넣어도 권한이 올라가지 않는다. Similar 결과에는 계속 status나 decision이 없다.
 
 ## 공개 API
 
@@ -53,25 +60,20 @@ Provider SDK에는 `ManufacturerSpecificationProvider`, `CpuSupportProvider`, `B
 
 `reference-default`는 소켓, 메모리 세대·용량, 폼팩터, 공간, 냉각, Storage, PCIe 물리 슬롯, Power Budget, PSU 커넥터를 REQUIRED로 둔다. PCIe 대역폭, Fan/RGB Header, Memory Rate, 4-DIMM Rate는 ADVISORY다. 아직 Provider가 없는 제조사 사양·CPU 지원·BIOS·QVL은 DISABLED다.
 
-## 이번 Checkpoint 커밋
+## 이번 Release Gate 커밋
 
-- `47b6a12 fix(domain): preserve unknown hardware facts`
-- `2ba3c0a feat(evidence): enforce immutable moderation records`
-- `9ac2223 feat(provider-sdk): define manufacturer support contracts`
-- `0427d50 feat(llm): add optional structured input tools`
-- `9b98f38 feat(api): bound catalog and evidence searches`
-- `90e22f3 test(domain): tighten release boundary coverage`
+- `e98d0d0 fix: enforce pre-release validation gates`
 
 ## 검증 상태
 
 - Passed — `corepack pnpm check:deps`
 - Passed — `corepack pnpm typecheck`
 - Passed — `corepack pnpm lint`
-- Passed — `corepack pnpm test:unit`, 21개 파일 197건
-- Passed — `corepack pnpm test:integration`, 4개 파일 33건
+- Passed — `corepack pnpm test:unit`, 21개 파일 206건
+- Passed — `corepack pnpm test:integration`, 4개 파일 34건
 - Passed — `corepack pnpm build`, 전체 패키지와 앱 production build
 - Passed — `corepack pnpm test:e2e`, desktop/mobile Chromium 2건
-- Passed — GitHub Actions run `34288087896`, Ubuntu 1분 7초·Windows 2분 37초
+- Passed — GitHub Actions run `34352421307`, Ubuntu 1분 27초·Windows 2분 13초
 - Passed — 변경 파일의 민감 파일명, private key, 로컬 절대경로, credential 형태 문자열 검사
 
 ## 남은 데이터 한계
