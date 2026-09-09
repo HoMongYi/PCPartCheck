@@ -25,6 +25,7 @@ test('Demo image uses the production standalone build as a non-root user', async
   expect(nextConfig).toContain("process.env.PCPARTCHECK_STANDALONE === 'true'");
   expect(dockerfile).toMatch(/^FROM node:24\.13\.1-bookworm-slim AS build$/mu);
   expect(dockerfile).toContain('ENV PCPARTCHECK_STANDALONE=true');
+  expect(dockerfile).toContain('--filter @pcpartcheck/demo-web... build');
   expect(dockerfile).toContain('.next/standalone');
   expect(dockerfile).toContain('USER node');
   expect(dockerfile).toContain('HEALTHCHECK');

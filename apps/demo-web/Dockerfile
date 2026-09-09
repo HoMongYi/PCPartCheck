@@ -13,7 +13,7 @@ RUN apt-get update \
 RUN corepack enable && corepack prepare pnpm@12.3.4 --activate
 COPY . .
 RUN corepack pnpm install --frozen-lockfile
-RUN corepack pnpm --filter @pcpartcheck/demo-web build
+RUN corepack pnpm --filter @pcpartcheck/demo-web... build
 
 FROM node:24.13.1-bookworm-slim AS runtime
 
