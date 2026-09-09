@@ -2,9 +2,9 @@
 
 ## 현재 상태
 
-Checkpoint 4의 Task 22~24 구현을 `feat/checkpoint-1-foundation` 브랜치에서 마쳤다. 공개 문서와 생성 산출물, Changesets와 version 검증, release metadata workflow, Reference API/Demo Web container 정의까지 들어갔다. 릴리스 코드 기준 commit은 `c406bdf916a180555458c39fabf95e088a3e20a4`다.
+Checkpoint 4의 Task 22~24와 Final Release Gate를 `feat/checkpoint-1-foundation` 브랜치에서 마쳤다. 공개 문서와 생성 산출물, Changesets와 version 검증, release metadata workflow, Reference API/Demo Web container 정의에 실제 Docker runtime 검증까지 들어갔다. Docker 검증 코드 기준 commit은 `1a1c8fb23b30c058eb134ed3b92c3b94d14b09f0`다.
 
-GitHub Actions run `34368010207`에서 Ubuntu와 Windows matrix가 모두 통과했다. `main`은 원격에 없고 GitHub default branch는 계속 `feat/checkpoint-1-foundation`이다. 개발 PC에 Docker CLI가 없어 container build/up/health/down을 실행하지 못했으므로, 사용자 지시대로 `main` 생성과 default branch 전환은 보류했다. tag와 GitHub Release도 만들지 않았다.
+GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu Docker job이 모두 통과했다. Docker job은 Docker Engine `28.0.4`, Docker Compose `v2.38.2`에서 두 image를 build한 뒤 Compose service를 실제로 띄워 health, API, Web, container 대상 Playwright, cleanup까지 확인했다. `v0.1.0` tag와 GitHub Release, npm publish는 별도 승인 전까지 만들거나 실행하지 않는다. 브랜치와 default branch의 현재 상태는 GitHub 설정을 기준으로 확인한다.
 
 ## 공개 Version Contract
 
@@ -46,12 +46,16 @@ BuildCores 문서에서는 pinned/reference validation commit `a3795382f9e73c283
 - API final stage는 `pnpm deploy --prod` bundle, Web final stage는 Docker build에서만 만든 Next standalone output을 사용한다.
 - Compose는 API 3001, Web 3000을 loopback에 공개하고 service health와 API dependency를 설정한다.
 - 현재 Compose는 synthetic mode다. SQLite package를 연결하지 않으며 volume도 없다.
+- Docker build stage에는 Node 24에서 `better-sqlite3`을 source build할 때 필요한 `python3`, `make`, `g++`만 넣었다. runtime stage에는 build toolchain이 들어가지 않는다.
+- Demo Web Docker build는 `@pcpartcheck/demo-web...` dependency closure를 먼저 build해 standalone output에 workspace package가 빠지지 않게 했다.
 
-Passed — Docker 계약 unit test 4건, Next 일반 production build, Docker 환경 변수로 생성한 standalone server 경로 확인.
+Passed — Docker 계약 unit test 5건, Next 일반 production build, Docker 환경 변수로 생성한 standalone server 경로 확인.
 
 Passed — production deploy로 만든 Reference API portable bundle의 `/health`와 `/openapi.json` 로컬 확인.
 
-Not run — `docker compose build`, `up`, container health/API/Web/E2E, `down`. 원인: 이 개발 PC에 `docker` 실행 파일이 설치돼 있지 않다. 로컬 portable bundle 검증을 Docker 검증으로 간주하지 않는다.
+Passed — GitHub Actions run `34378180449`의 실제 `docker compose config`, 두 image build, `up -d`, `reference-api`/`demo-web` healthy, `/health`, `/openapi.json`, Web HTTP, desktop/mobile Playwright, `down --volumes --remove-orphans`.
+
+첫 Docker run `34376342605`는 slim builder에 Python이 없어 `better-sqlite3`의 `node-gyp` build가 실패했다. 두 번째 run `34377278292`는 Demo build가 workspace dependency closure를 빼먹어 `@pcpartcheck/api-contracts`를 찾지 못했다. 두 문제 모두 Dockerfile과 패키징 범위에서만 고쳤으며 Domain, Rule, Provider, API, Canonical Schema는 바꾸지 않았다.
 
 ## 검증 결과
 
@@ -59,7 +63,7 @@ Not run — `docker compose build`, `up`, container health/API/Web/E2E, `down`. 
 - Passed — `corepack pnpm check:deps`
 - Passed — `corepack pnpm typecheck`
 - Passed — `corepack pnpm lint`
-- Passed — `corepack pnpm test:unit`, 24개 파일 214건
+- Passed — `corepack pnpm test:unit`, 25개 파일 216건
 - Passed — `corepack pnpm test:integration`, 4개 파일 34건
 - Passed — `corepack pnpm build`
 - Passed — `corepack pnpm test:e2e`, desktop/mobile Chromium 2건
@@ -67,11 +71,11 @@ Not run — `docker compose build`, `up`, container health/API/Web/E2E, `down`. 
 - Passed — `version:check`
 - Passed — `pack:check`, 공개 package 14개
 - Passed — README의 Reference API start, `/health`, `/openapi.json` 명령 흐름
-- Passed — GitHub Actions run `34368010207`: Ubuntu 2분 11초, Windows 2분 53초
+- Passed — GitHub Actions run `34378180449`: Docker 2분 8초, Ubuntu 2분 26초, Windows 3분 8초
 - Passed — 추적 파일명과 본문의 secret/credential/private key, 개인 로컬 경로, DB/build output, 회사 내부 데이터 marker 검사
 
 ## 남은 제약과 다음 단계
 
 BuildCores에는 Storage 장치 M.2 Key, M.2/SATA 공유 조건, PCIe physical/electrical 구분, 추가 EPS 필수 여부, Fan 두께가 없다. 제조사 CPU support/BIOS/QVL Provider, 운영 인증·rate limit·Attachment Storage, 실제 persistence composition도 아직 없다. Similarity weight는 합성 fixture로 결정론만 확인했다.
 
-다음 작업은 Docker가 있는 Linux 환경에서 `docker compose build`, `up -d`, API health/OpenAPI/Web, Compose 대상 Browser E2E, `down`을 차례로 확인하는 것이다. 모두 통과한 뒤에만 현재 검증된 release HEAD로 `main`을 만들고 default branch를 바꾼다. 그 `main`의 CI가 통과하면 `v0.1.0` tag와 GitHub Release 생성 승인을 다시 받는다. feature branch는 사용자 확인 전 삭제하지 않는다.
+실제 Docker runtime release gate까지 통과했다. 이후 릴리스 단계에서도 `feat/checkpoint-1-foundation` 브랜치는 사용자 확인 전 삭제하지 않는다. `v0.1.0` tag, GitHub Release, npm publish는 아직 승인되지 않았으므로 실행하지 않는다.
