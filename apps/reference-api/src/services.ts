@@ -8,6 +8,7 @@ import type {
 } from '@pcpartcheck/api-contracts';
 import {
   CANONICAL_SCHEMA_VERSION,
+  ENGINE_VERSION,
   INSTALLATION_CONTEXT_SCHEMA_VERSION,
   createCompatibilityEngine,
   type CanonicalPart,
@@ -33,6 +34,7 @@ import {
   clearanceRules,
   platformRules,
   storageRules,
+  STANDARD_RULE_SET_VERSION,
 } from '@pcpartcheck/rules-standard';
 import { rankSimilarFieldEvidence } from '@pcpartcheck/similarity';
 
@@ -45,9 +47,11 @@ const allRules: readonly EngineRule[] = [
 ];
 const rulesById = new Map(allRules.map((rule) => [rule.ruleId, rule]));
 
+export const REFERENCE_POLICY_VERSION = '1.0.0' as const;
+
 const versions = {
-  engineVersion: '0.1.0',
-  ruleSetVersion: '0.1.0',
+  engineVersion: ENGINE_VERSION,
+  ruleSetVersion: STANDARD_RULE_SET_VERSION,
   canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
   installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
   identityMapperVersion: '1.1.0',
@@ -142,7 +146,7 @@ const capabilities: readonly CapabilityResponseItem[] = [
 const profiles: readonly PolicyProfile[] = [
   {
     profileId: 'reference-default',
-    policyVersion: '1.0.0',
+    policyVersion: REFERENCE_POLICY_VERSION,
     capabilities: capabilities.map(({ capabilityId, defaultMode }) => ({
       capabilityId,
       mode: defaultMode,

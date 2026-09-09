@@ -16,3 +16,4 @@ export * from './installation-context.js';
 export * from './rule.js';
 export * from './result.js';
 export * from './snapshot.js';
+export * from './version.js';

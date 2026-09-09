@@ -18,13 +18,16 @@
     "docs:openapi": "corepack pnpm build && node scripts/generate-openapi.mjs",
     "docs:screenshot": "corepack pnpm build && node scripts/capture-demo-screenshot.mjs",
     "lint": "eslint .",
+    "pack:check": "corepack pnpm build && node scripts/check-package-packs.mjs",
     "test": "vitest run",
     "test:e2e": "corepack pnpm build && playwright test",
     "test:integration": "vitest run tests/integration --passWithNoTests",
     "test:unit": "vitest run --exclude tests/integration/**",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "version:check": "corepack pnpm build && node scripts/check-versions.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.2",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@types/better-sqlite3": "9.6.0",

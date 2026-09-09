@@ -23,6 +23,7 @@ const requiredFiles = [
   'docs/OPERATIONS.md',
   'docs/ROADMAP.md',
   'docs/HANDOFF.md',
+  'docs/VERSIONING.md',
   'docs/openapi.json',
   'docs/diagrams/package-dependencies.mmd',
   'docs/diagrams/runtime-data-flow.mmd',

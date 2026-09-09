@@ -8,7 +8,7 @@ PCPartCheck는 PC 부품 사양을 공급처와 무관한 Canonical 형식으로
 
 CPU 소켓과 메모리 세대처럼 명확한 일치 조건부터 케이스 내부 공간, 냉각, 저장장치 자원, PSU 용량과 커넥터까지 검사합니다. 데이터가 부족한 항목은 추정해 통과시키지 않고 `UNKNOWN`으로 남깁니다. 결과에는 사용한 입력, Evidence, 엔진·RuleSet·Schema·Provider 버전이 함께 들어가므로 당시 판정을 재현할 수 있습니다.
 
-현재 패키지와 엔진 버전은 `0.1.0`입니다. Canonical Schema `3.0.0`, Installation Context `2.0.0`, Field Evidence `3.0.0`, Result Snapshot `2.0.0`, Identity Mapper `1.1.0`을 사용합니다. 이 버전들은 서로 다른 계약을 나타내며 한꺼번에 같은 번호로 올리지 않습니다.
+현재 패키지와 엔진 버전은 `0.1.0`입니다. Canonical Schema `3.0.0`, Installation Context `2.0.0`, Field Evidence `3.0.0`, Result Snapshot `2.0.0`, Identity Mapper `1.1.0`을 사용합니다. 이 버전들은 서로 다른 계약을 나타내며 한꺼번에 같은 번호로 올리지 않습니다. 세부 정책은 [Versioning 문서](docs/VERSIONING.md)에 있습니다.
 
 ## 하지 않는 일
 
@@ -75,6 +75,7 @@ CPU와 GPU에는 Canonical peak power가 있어야 계산합니다. 메인보드
 ```ts
 import {
   CANONICAL_SCHEMA_VERSION,
+  ENGINE_VERSION,
   INSTALLATION_CONTEXT_SCHEMA_VERSION,
   createCompatibilityEngine,
 } from '@pcpartcheck/core';
@@ -86,13 +87,14 @@ import {
   clearanceRules,
   platformRules,
   storageRules,
+  STANDARD_RULE_SET_VERSION,
 } from '@pcpartcheck/rules-standard';
 
 const engine = createCompatibilityEngine({
   rules: [...platformRules, ...clearanceRules, ...storageRules, ...powerRules, ...advisoryRules],
   versions: {
-    engineVersion: '0.1.0',
-    ruleSetVersion: '0.1.0',
+    engineVersion: ENGINE_VERSION,
+    ruleSetVersion: STANDARD_RULE_SET_VERSION,
     canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
     installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
     identityMapperVersion: IDENTITY_MAPPER_VERSION,

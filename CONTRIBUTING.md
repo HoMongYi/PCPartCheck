@@ -32,7 +32,7 @@ Rule과 Provider는 각각 [Rule 추가 절차](docs/ADDING-A-RULE.md), [Provide
 corepack pnpm changeset
 ```
 
-변경한 패키지와 patch/minor 수준, 사용자가 알아야 할 내용을 적습니다. Schema나 RuleSet 버전이 달라졌다면 package Changeset과 별도로 runtime constant와 Snapshot 검증도 고쳐야 합니다.
+변경한 패키지와 patch/minor 수준, 사용자가 알아야 할 내용을 적습니다. Schema나 RuleSet 버전이 달라졌다면 package Changeset과 별도로 [Versioning 계약](docs/VERSIONING.md)에 맞는 runtime constant와 Snapshot 검증도 고쳐야 합니다.
 
 ## Pull Request 확인 항목
 

@@ -1,6 +1,6 @@
 # 변경 기록
 
-이 프로젝트는 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식을 참고하고, 패키지 버전은 Semantic Versioning을 따릅니다. Schema와 RuleSet 같은 별도 계약 버전도 각각 기록합니다.
+이 프로젝트는 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식을 참고하고, 패키지 버전은 Semantic Versioning을 따릅니다. Schema와 RuleSet 같은 별도 계약 버전은 [Versioning 문서](docs/VERSIONING.md)에서 관리합니다.
 
 ## [Unreleased]
 

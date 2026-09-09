@@ -7,7 +7,7 @@
 1. [Architecture](ARCHITECTURE.md)와 package dependency 검사
 2. [Rule Engine](RULE-ENGINE.md)의 Status/Decision/Coverage
 3. [Evidence Model](EVIDENCE-MODEL.md)과 [Field Evidence](FIELD-EVIDENCE.md)
-4. Result Snapshot의 독립 version domain과 replay
+4. [Versioning](VERSIONING.md)과 Result Snapshot replay
 5. [BuildCores Provider](providers/buildcores.md)의 pin/fingerprint/Attribution
 
 ## 변경 전 질문

@@ -1,0 +1,33 @@
+name: Release preparation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install dependencies
+        uses: pnpm/setup@c8e77b72cd6022852162c92aa10e7e72b7209c9b # v2
+        with:
+          runtime: node@24.13.1
+          cache: true
+          require-lockfile: true
+      - run: pnpm version:check
+      - run: pnpm pack:check
+      - name: Inspect pending Changesets
+        run: pnpm changeset status
+      - name: Create release metadata
+        run: node scripts/create-release-metadata.mjs
+      - name: Upload release metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pcpartcheck-release-metadata
+          path: output/release/release-metadata.json
+
+# npm publish, tag creation, and GitHub Release creation require separate approval.
