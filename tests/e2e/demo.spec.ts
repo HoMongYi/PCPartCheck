@@ -4,7 +4,8 @@ test('shows real engine scenarios and keeps similar failures informational', asy
   page,
   request,
 }) => {
-  const apiResponse = await request.get('http://127.0.0.1:3001/v1/demo');
+  const apiBaseUrl = process.env.PCPARTCHECK_E2E_API_URL ?? 'http://127.0.0.1:3001';
+  const apiResponse = await request.get(`${apiBaseUrl}/v1/demo`);
   expect(apiResponse.ok()).toBeTruthy();
   const dashboard = (await apiResponse.json()) as {
     readonly scenarios: readonly unknown[];

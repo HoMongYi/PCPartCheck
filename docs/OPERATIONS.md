@@ -25,6 +25,16 @@ Compose는 API 3001, Web 3000을 공개합니다. 두 image는 Node 24 기반 mu
 
 `docker-compose.test.yml`은 host Playwright가 Compose의 Web을 검사할 때 사용합니다. `PCPARTCHECK_E2E_BASE_URL=http://127.0.0.1:3000`을 지정하면 Playwright가 자체 webServer를 띄우지 않고 이미 실행 중인 container를 사용합니다.
 
+```powershell
+docker compose -f docker-compose.test.yml up -d --build
+$env:PCPARTCHECK_E2E_BASE_URL='http://127.0.0.1:3000'
+$env:PCPARTCHECK_E2E_API_URL='http://127.0.0.1:3001'
+corepack pnpm exec playwright test
+docker compose -f docker-compose.test.yml down
+```
+
+Reference API image는 `pnpm deploy --prod`로 만든 portable bundle만 최종 stage에 복사합니다. Demo image는 Next standalone output과 정적 asset만 복사합니다. 두 runtime stage 모두 `node` 사용자로 실행하며 개발 의존성, 이 저장소의 test fixture, build cache와 `.env`는 image context에서 제외합니다.
+
 ## Synthetic mode와 persistence
 
 Reference API는 실행할 때 합성 catalog와 memory Evidence/Attachment를 구성합니다. container를 내리면 수정 내용은 사라집니다. `@pcpartcheck/storage-sqlite` package와 migration은 구현돼 있지만 이 Compose에는 연결하지 않았으므로 volume도 선언하지 않습니다.

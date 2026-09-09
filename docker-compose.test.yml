@@ -1,0 +1,15 @@
+name: pcpartcheck-test
+
+services:
+  reference-api:
+    extends:
+      file: docker-compose.yml
+      service: reference-api
+
+  demo-web:
+    extends:
+      file: docker-compose.yml
+      service: demo-web
+    depends_on:
+      reference-api:
+        condition: service_healthy
