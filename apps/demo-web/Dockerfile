@@ -7,6 +7,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PCPARTCHECK_STANDALONE=true
 WORKDIR /workspace
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@12.3.4 --activate
 COPY . .
 RUN corepack pnpm install --frozen-lockfile

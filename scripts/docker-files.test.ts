@@ -46,3 +46,14 @@ test('Docker context excludes secrets, fixtures, dependencies, and build output'
     expect(dockerignore).toContain(entry);
   }
 });
+
+test('Docker builders include the native toolchain required by workspace installs', async () => {
+  const dockerfiles = await Promise.all([
+    source('apps/reference-api/Dockerfile'),
+    source('apps/demo-web/Dockerfile'),
+  ]);
+
+  for (const dockerfile of dockerfiles) {
+    expect(dockerfile).toContain('python3 make g++');
+  }
+});
