@@ -1,0 +1,54 @@
+flowchart LR
+  core["@pcpartcheck/core"]
+  evidence["@pcpartcheck/evidence"]
+  unit_normalization["@pcpartcheck/unit-normalization"]
+  rules_standard["@pcpartcheck/rules-standard"]
+  power["@pcpartcheck/power"]
+  identity["@pcpartcheck/identity"]
+  similarity["@pcpartcheck/similarity"]
+  provider_sdk["@pcpartcheck/provider-sdk"]
+  provider_buildcores["@pcpartcheck/provider-buildcores"]
+  storage_sqlite["@pcpartcheck/storage-sqlite"]
+  llm_toolkit["@pcpartcheck/llm-toolkit"]
+  api_contracts["@pcpartcheck/api-contracts"]
+  demo_data["@pcpartcheck/demo-data"]
+  http_server["@pcpartcheck/http-server"]
+  reference_api["@pcpartcheck/reference-api"]
+  demo_web["@pcpartcheck/demo-web"]
+
+  evidence --> core
+  unit_normalization --> core
+  rules_standard --> core
+  power --> core
+  identity --> core
+  similarity --> core
+  similarity --> evidence
+  provider_sdk --> core
+  provider_buildcores --> core
+  provider_buildcores --> identity
+  provider_buildcores --> provider_sdk
+  provider_buildcores --> unit_normalization
+  storage_sqlite --> core
+  storage_sqlite --> evidence
+  storage_sqlite --> identity
+  llm_toolkit --> core
+  api_contracts --> core
+  api_contracts --> evidence
+  api_contracts --> similarity
+  demo_data --> core
+  demo_data --> evidence
+  http_server --> api_contracts
+  reference_api --> api_contracts
+  reference_api --> core
+  reference_api --> demo_data
+  reference_api --> evidence
+  reference_api --> http_server
+  reference_api --> power
+  reference_api --> rules_standard
+  reference_api --> similarity
+  demo_web --> api_contracts
+
+  classDef coreStyle fill:#17202a,color:#fff,stroke:#4dd0e1,stroke-width:3px
+  classDef adapterStyle fill:#eef6f7,color:#17202a,stroke:#6b8a8d
+  class core coreStyle
+  class evidence,unit_normalization,rules_standard,power,identity,similarity,provider_sdk,provider_buildcores,storage_sqlite,llm_toolkit,api_contracts,demo_data,http_server,reference_api,demo_web adapterStyle

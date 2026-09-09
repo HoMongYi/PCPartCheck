@@ -1,26 +1,34 @@
 # BuildCores OpenDB Provider
 
-## 확인한 원본
-
-Task 17 구현을 시작한 2026-09-08에 BuildCores OpenDB의 `main`을 다시 확인했다.
+## 확인한 원본과 commit 역할
 
 - 저장소: `https://github.com/buildcores/buildcores-open-db`
-- commit: `547b32703b370142f17b09c3047c80dc88ba5260`
-- `open-db` tree: `5f24e13c06d496af9eab38bf63d06afd80be1d91`
-- `schemas` tree: `cc15acdcf8cec85d36b267fd6c201eff754cf624`
 - 라이선스: ODC-By 1.0
+- pinned/reference validation commit: `a3795382f9e73c283e3592a8c972842fd0e72e22`
+- 위 commit의 `schemas` tree: `cc15acdcf8cec85d36b267fd6c201eff754cf624`
+- 기존 조사에 사용한 data commit: `547b32703b370142f17b09c3047c80dc88ba5260`
+- 2026-09-09에 확인한 upstream 최신 commit: `932a6cfcb4fbe372bcd0ed600a7e127295d25dee`
 
-Checkpoint 3.5에서 최신 main을 다시 읽었다. `/open-db/{category}/{UUID}.json`, `/schemas/*.schema.json`, `opendb_id`, `metadata`, `identifiers` 구조는 유지됐지만 데이터 commit은 갱신됐다. Schema tree는 이전 조사와 같은 SHA였다.
-
-Pre-Checkpoint 4 검증에는 `a3795382f9e73c283e3592a8c972842fd0e72e22`를 사용했다. 이 commit의 Schema tree도 `cc15acdcf8cec85d36b267fd6c201eff754cf624`로 같았다.
+`a3795382…`는 현재 fixture와 importer validation을 재현하는 고정 기준입니다. `547b3270…`는 Task 17 조사 당시 데이터 구조를 확인한 commit입니다. `932a6cfc…`는 문서를 쓴 시점의 원격 HEAD일 뿐, 자동으로 승인된 data commit이나 현재 importer의 pin이 아닙니다. 실제 import를 실행할 때는 선택한 data commit을 Result Snapshot의 provider version 정보에 따로 남겨야 합니다.
 
 ## Snapshot 방식
 
 Provider는 BuildCores 데이터 전체를 이 저장소에 복사하지 않는다. 사용자가 별도로 준비한 특정 commit의 local snapshot을 읽고, 그 안의 `/schemas` 파일을 직접 검사한다. 파일 경로와 UTF-8 본문을 정렬한 뒤 SHA-256을 계산하며, Windows와 Linux에서 결과가 달라지지 않도록 줄바꿈은 LF로 맞춘다. 예상 fingerprint와 실제 값이 다르면 레코드를 읽기 전에 import를 중단한다.
 
-고정 commit의 `/schemas` 전체 31개 파일을 같은 방식으로 계산한 값은 `sha256:a33ac0906b264ab6a3efc92bc4e27911852dcfe1d01fcdc50a23349dab3fb93c`다. 오프라인 테스트 fixture에는 현재 지원하는 9개 category의 공식 Schema 원문만 포함했으며, 이 부분 snapshot의 fingerprint는 `sha256:2c0a21f04687effb7445574465a769ed83bb9f50149880157e7f2dea92505bf9`다.
+Pinned/reference validation commit의 `/schemas` 전체 31개 파일을 같은 방식으로 계산한 schema fingerprint는 `sha256:a33ac0906b264ab6a3efc92bc4e27911852dcfe1d01fcdc50a23349dab3fb93c`다. 오프라인 테스트 fixture에는 현재 지원하는 9개 category의 공식 Schema 원문만 포함했으며, 이 부분 snapshot의 fingerprint는 `sha256:2c0a21f04687effb7445574465a769ed83bb9f50149880157e7f2dea92505bf9`다.
 
 지원 category의 레코드는 해당 snapshot에 들어 있는 BuildCores JSON Schema를 통과해야 Adapter로 넘어간다. JSON 자체가 깨졌으면 `INVALID_JSON`, Source Schema를 어겼으면 `SOURCE_SCHEMA_VALIDATION_FAILED`로 기록한다. 매핑이 끝난 값도 `CanonicalPartSchema` runtime 검증을 통과해야 `IMPORTED`가 되며, 여기서 실패하면 `CANONICAL_SCHEMA_VALIDATION_FAILED`로 구분한다. 필수 원본이 없거나 뜻이 불분명한 값은 추정하지 않고, Canonical 최소 필드가 부족하면 `SKIPPED`로 남긴다.
+
+## 새 snapshot을 채택하는 절차
+
+1. 사용할 BuildCores data commit을 먼저 고정한다.
+2. 같은 commit의 `/schemas` 전체를 읽어 schema fingerprint를 계산한다.
+3. 지원 category record를 해당 원본 Schema로 검증한다.
+4. importer의 정상·실패·skip fixture test를 새 pin으로 실행한다.
+5. mapping audit과 Canonical output을 category별로 검토한다.
+6. 승인된 adapter/provider version, data commit, schema fingerprint를 Snapshot metadata에 기록한다.
+
+Fingerprint가 예상값과 다르면 레코드를 읽기 전에 중단합니다. mismatch를 무시하거나 계산값을 자동 승인하는 옵션은 제공하지 않습니다. upstream 최신 commit을 새 data commit으로 쓰려면 위 여섯 단계를 처음부터 거쳐야 합니다.
 
 ## 카테고리별 Coverage
 

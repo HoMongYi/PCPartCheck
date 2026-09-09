@@ -1,0 +1,20 @@
+flowchart LR
+  external["External data"] --> source_validation["Provider schema validation"]
+  source_validation --> normalization["Unit normalization"]
+  normalization --> identity["Deterministic identity mapping"]
+  identity --> canonical["Canonical parts"]
+  canonical --> policy["Policy / capability"]
+  policy --> rules["Compatibility rules"]
+  rules --> exact["Exact field evidence"]
+  exact --> aggregation["Status / decision aggregation"]
+  aggregation --> snapshot["Versioned result snapshot"]
+  snapshot --> consumers["SDK / HTTP API / Demo"]
+  consumers --> llm["Optional LLM explanation"]
+  similar["Similar field evidence · reference only"] -.-> consumers
+
+  classDef boundary fill:#fff3cd,color:#3d3422,stroke:#a77b00
+  classDef deterministic fill:#e9f7ef,color:#143d24,stroke:#2e8b57
+  classDef optional fill:#f4ecf7,color:#38243f,stroke:#8e5ea2
+  class external,source_validation boundary
+  class normalization,identity,canonical,policy,rules,exact,aggregation,snapshot,consumers deterministic
+  class similar,llm optional
