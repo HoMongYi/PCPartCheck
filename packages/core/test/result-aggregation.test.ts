@@ -153,3 +153,16 @@ test('disabled capabilities cannot report an evaluated result', () => {
     'Disabled rule qvl must be NOT_CHECKED',
   );
 });
+
+test('a required deterministic failure remains blocking beside exact evidence success', () => {
+  const aggregateResult = aggregate([
+    result('exact-field-evidence', 'REQUIRED', 'PASS'),
+    result('psu-form-factor', 'REQUIRED', 'INCOMPATIBLE'),
+  ]);
+
+  expect(aggregateResult).toMatchObject({
+    status: 'INCOMPATIBLE',
+    decision: 'BLOCK',
+    issues: { blockingRuleIds: ['psu-form-factor'] },
+  });
+});
