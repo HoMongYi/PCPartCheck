@@ -13,10 +13,12 @@
 - Engine은 Knowledge 입력 생략을 빈 배열로 정규화하고, 실행 전에 한 번 canonicalize하며, Evidence JSON은 한 번 복제해 rule context와 결과 snapshot에 함께 사용한다. Replay는 Knowledge/Evidence version drift와 구형 Snapshot Format `2.0.0`을 명시적으로 거부한다.
 - Task 4: COMPLETE. Provider SDK는 `KnowledgeSnapshotQuery`와 `KnowledgeSnapshotProvider.loadKnowledgeSnapshots()`를 공개하며, provider-neutral immutable Knowledge Snapshot만 규칙 계층으로 전달한다.
 - 기존 `CpuSupportProvider`, `BiosReleaseProvider`, `MemoryQvlProvider`는 source-specific adapter ingress로 유지한다. Provider 구현은 저장된 fixture의 mutable reference를 호출자에게 노출하지 않는 계약이며 synthetic clone fixture로 검증했다.
-- 검증: Task 4 focused 5건, Task 1~3 계약 회귀 32건, unit 239건, integration 34건, typecheck, lint, dependency boundaries, docs, 전체 build PASS.
+- Task 5: COMPLETE. CPU support resolver는 active Knowledge Snapshot의 exact part/revision relation만 사용하며 명시적 `SUPPORTED`, `UNSUPPORTED`, `MISSING`, `CONFLICT`를 provider-neutral 결과로 구분한다.
+- `cpuSupportRule`은 이를 각각 `PASS`, `INCOMPATIBLE`, `UNKNOWN`, `REVIEW_REQUIRED`로 매핑한다. 지원 목록의 부재를 비지원으로 추정하지 않으며, 사용 relation ID와 provider별 BIOS requirement provenance를 결정론적으로 보존한다. BIOS version/order 비교는 하지 않는다.
+- 검증: Task 5 focused/platform 21건, rules-standard 69건, Core 52건, Provider SDK 5건, unit 251건, integration 34건, typecheck, lint, dependency boundaries, docs, 전체 build PASS.
 - 공개 package와 engine version은 `0.1.0`을 유지한다. v0.2.0 tag/release와 Changeset은 만들지 않았다.
 - clean-room 경계: 외부 network/provider 접근과 Compuzone-specific code/data는 0이며 HMY-PCPartCheck는 변경하지 않았다.
-- Task 5: NOT STARTED. 사용자 승인 전 CPU support resolution을 시작하지 않는다.
+- Task 6: NOT STARTED. 사용자 승인 전 minimum BIOS evaluation을 시작하지 않는다.
 
 ## v0.1.0 기준선
 
