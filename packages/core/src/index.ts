@@ -14,6 +14,7 @@ export * from './build.js';
 export * from './contract-upgrades.js';
 export * from './engine.js';
 export * from './installation-context.js';
+export * from './knowledge.js';
 export * from './rule.js';
 export * from './result.js';
 export * from './snapshot.js';

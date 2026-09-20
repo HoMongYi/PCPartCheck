@@ -7,10 +7,12 @@
 - 계획 파일: `docs/superpowers/plans/2026-09-20-pcpartcheck-v0.2-design-implementation-plan.md`
 - Task 1: COMPLETE. Canonical `3.1.0`은 PSU form factor를 unknown으로 보존할 수 있고, Installation Context `2.1.0`은 provider-neutral component hardware revision을 표현한다.
 - v0.1 계약 upgrade helper는 입력을 복제해 version literal만 바꾸며, 구형 계약에서 유효하지 않았던 사실을 거부한다. component revision의 중복 part identity는 engine boundary에서 거부한다.
-- 검증: focused 48건, unit 224건, integration 34건, typecheck, lint, dependency boundaries, frozen install, 전체 build PASS.
+- Task 2: COMPLETE. Knowledge Snapshot `1.0.0`은 provider/version, 수집 시점, source provenance, CPU support와 BIOS release relation, 동일-provider supersession을 immutable provider-neutral contract로 보존한다.
+- Knowledge validation은 전역 snapshot/relation ID, snapshot 내부 source ID, durable provenance, 동일 motherboard condition의 minimum-BIOS 참조, 비순환 supersession을 강제한다. Canonicalization은 snapshot/source/relation ID 순서로 결정론적으로 정렬하며 입력을 수정하지 않는다.
+- 검증: Task 2 focused 22건, Core 49건, unit 234건, integration 34건, typecheck, lint, dependency boundaries, docs, 전체 build PASS.
 - 공개 package와 engine version은 `0.1.0`을 유지한다. v0.2.0 tag/release와 Changeset은 만들지 않았다.
 - clean-room 경계: 외부 network/provider 접근과 Compuzone-specific code/data는 0이며 HMY-PCPartCheck는 변경하지 않았다.
-- Task 2: NOT STARTED. 사용자 승인 전 Knowledge Snapshot 구현을 시작하지 않는다.
+- Task 3: NOT STARTED. 사용자 승인 전 Knowledge/Evidence engine plumbing을 시작하지 않는다.
 
 ## v0.1.0 기준선
 
@@ -23,6 +25,7 @@ GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu D
 - 공개 package와 Engine: `0.1.0`
 - Canonical Schema: `3.1.0`
 - Installation Context: `2.1.0`
+- Knowledge Snapshot: `1.0.0`
 - Field Evidence: `3.0.0`
 - Result Snapshot: `2.0.0`
 - Standard RuleSet: `0.1.0`
