@@ -1,10 +1,22 @@
 # PCPartCheck 작업 인계
 
-## 현재 상태
+## 현재 상태 — v0.2.0 계획
+
+- 계획 branch: `docs/phase-3-pcpartcheck-v0.2-plan`
+- 계획 base: `v0.1.0` / `e28d542ab2db5ce5d8294fe96add8942047f4a66`
+- 계획 파일: `docs/superpowers/plans/2026-09-20-pcpartcheck-v0.2-design-implementation-plan.md`
+- 범위: provider-neutral Knowledge Snapshot, CPU support/minimum BIOS, case ↔ PSU form factor, Exact Field Evidence orchestration의 설계와 Task별 TDD 구현 계획
+- 구현 상태: NOT STARTED. 구현 branch, package/schema 변경, tag, release, publish, deploy는 만들지 않았다.
+- 경계: live network/provider 구현 없이 synthetic fixture만 계획했고, 별도 product repository와 engine pin은 수정하지 않았다.
+- 다음 단계: 사용자가 deliberate version boundary와 equal-authority provider conflict policy를 포함한 계획을 검토하고 명시적으로 승인한 뒤 Task 1을 시작한다.
+
+계획 worktree의 frozen offline install은 로컬 pnpm store에 `d3-geo@3.1.1` tarball이 없어 완료되지 않았다. 기존 checkout의 unit command는 sandbox `spawn EPERM`으로 시작하지 못했고, sandbox 밖 재시도는 approval service HTTP 429로 실행되지 않았다. 이는 assertion 실패가 아니며 v0.2 구현 시작 전에 clean worktree에서 baseline 전체 검증이 필요하다.
+
+## v0.1.0 기준선
 
 Checkpoint 4의 Task 22~24와 Final Release Gate를 `feat/checkpoint-1-foundation` 브랜치에서 마쳤다. 공개 문서와 생성 산출물, Changesets와 version 검증, release metadata workflow, Reference API/Demo Web container 정의에 실제 Docker runtime 검증까지 들어갔다. Docker 검증 코드 기준 commit은 `1a1c8fb23b30c058eb134ed3b92c3b94d14b09f0`다.
 
-GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu Docker job이 모두 통과했다. Docker job은 Docker Engine `28.0.4`, Docker Compose `v2.38.2`에서 두 image를 build한 뒤 Compose service를 실제로 띄워 health, API, Web, container 대상 Playwright, cleanup까지 확인했다. `v0.1.0` tag와 GitHub Release, npm publish는 별도 승인 전까지 만들거나 실행하지 않는다. 브랜치와 default branch의 현재 상태는 GitHub 설정을 기준으로 확인한다.
+GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu Docker job이 모두 통과했다. Docker job은 Docker Engine `28.0.4`, Docker Compose `v2.38.2`에서 두 image를 build한 뒤 Compose service를 실제로 띄워 health, API, Web, container 대상 Playwright, cleanup까지 확인했다. 로컬 annotated `v0.1.0` tag는 `e28d542ab2db5ce5d8294fe96add8942047f4a66`을 가리킨다. GitHub Release와 npm publish 상태는 이번 계획 세션에서 재확인하지 않았다.
 
 ## 공개 Version Contract
 
@@ -78,4 +90,4 @@ Passed — GitHub Actions run `34378180449`의 실제 `docker compose config`, �
 
 BuildCores에는 Storage 장치 M.2 Key, M.2/SATA 공유 조건, PCIe physical/electrical 구분, 추가 EPS 필수 여부, Fan 두께가 없다. 제조사 CPU support/BIOS/QVL Provider, 운영 인증·rate limit·Attachment Storage, 실제 persistence composition도 아직 없다. Similarity weight는 합성 fixture로 결정론만 확인했다.
 
-실제 Docker runtime release gate까지 통과했다. 이후 릴리스 단계에서도 `feat/checkpoint-1-foundation` 브랜치는 사용자 확인 전 삭제하지 않는다. `v0.1.0` tag, GitHub Release, npm publish는 아직 승인되지 않았으므로 실행하지 않는다.
+실제 Docker runtime release gate까지 통과했다. 이후 릴리스 단계에서도 `feat/checkpoint-1-foundation` 브랜치는 사용자 확인 전 삭제하지 않는다. 기존 `v0.1.0` tag와 history는 변경하지 않으며, GitHub Release나 npm publish는 별도 승인과 fresh verification 없이 실행하지 않는다.
