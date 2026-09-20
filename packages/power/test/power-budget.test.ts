@@ -85,6 +85,8 @@ function context(parts: readonly CanonicalPart[]): CompatibilityRuleContext {
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext,
     policy: { capabilityId: 'power', mode: 'REQUIRED' },
+    knowledgeSnapshots: [],
+    evidenceSnapshot: {},
   };
 }
 

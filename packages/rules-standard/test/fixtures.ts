@@ -33,6 +33,8 @@ export function context(
       mode: 'REQUIRED',
       ...(config ? { config } : {}),
     },
+    knowledgeSnapshots: [],
+    evidenceSnapshot: {},
   };
 }
 

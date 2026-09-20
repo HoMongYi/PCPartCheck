@@ -10,6 +10,7 @@ import {
   CANONICAL_SCHEMA_VERSION,
   ENGINE_VERSION,
   INSTALLATION_CONTEXT_SCHEMA_VERSION,
+  KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
   createCompatibilityEngine,
   type CanonicalPart,
   type EngineRule,
@@ -54,6 +55,8 @@ const versions = {
   ruleSetVersion: STANDARD_RULE_SET_VERSION,
   canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
   installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
+  knowledgeSnapshotSchemaVersion: KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
+  evidencePolicyVersion: '1.0.0',
   identityMapperVersion: '1.1.0',
   providerVersions: [
     { providerId: 'synthetic-demo', providerVersion: '1.0.0' },

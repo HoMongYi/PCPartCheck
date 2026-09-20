@@ -17,6 +17,7 @@ interface TestRuleResult {
   readonly summary: string;
   readonly reasons: readonly string[];
   readonly evidenceIds: readonly string[];
+  readonly knowledgeRelationIds?: readonly string[];
   readonly conditions?: readonly { readonly code: string; readonly message: string }[];
 }
 
@@ -80,6 +81,19 @@ test('advisory incompatibility warns without blocking', () => {
       reviewRuleIds: [],
       advisoryRuleIds: ['rgb'],
     },
+  });
+});
+
+test('preserves optional knowledge relation provenance', () => {
+  const knowledgeResult: TestRuleResult = {
+    ...result('cpu-support', 'REQUIRED', 'PASS'),
+    knowledgeRelationIds: ['support-a', 'bios-a'],
+  };
+
+  expect(aggregate([knowledgeResult])).toMatchObject({
+    ruleResults: [
+      { knowledgeRelationIds: ['support-a', 'bios-a'] },
+    ],
   });
 });
 

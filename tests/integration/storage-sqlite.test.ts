@@ -188,13 +188,15 @@ describe('SQLite repositories', () => {
   test('round-trips a reproducible result snapshot', async () => {
     const { store } = await openStore();
     const snapshot: ResultSnapshot = {
-      snapshotFormatVersion: '2.0.0',
+      snapshotFormatVersion: '3.0.0',
       checkedAt: '2026-09-08T00:00:00.000Z',
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
       policyVersion: '1.0.0',
       canonicalSchemaVersion: '3.1.0',
       installationContextSchemaVersion: '2.1.0',
+      knowledgeSnapshotSchemaVersion: '1.0.0',
+      evidencePolicyVersion: '1.0.0',
       identityMapperVersion: '1.0.0',
       providerVersions: [],
       inputSnapshot: {
@@ -206,6 +208,7 @@ describe('SQLite repositories', () => {
           policyVersion: '1.0.0',
           capabilities: [],
         },
+        knowledgeSnapshots: [],
       },
       evidenceSnapshot: { evidenceVersion: '1.0.0', evidenceIds: [] },
       resultSnapshot: {

@@ -18,6 +18,11 @@ import {
   InstallationContextSchema,
   type InstallationContext,
 } from './installation-context.js';
+import {
+  KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
+  validateAndCanonicalizeKnowledgeSnapshots,
+  type KnowledgeSnapshot,
+} from './knowledge.js';
 import { aggregateRuleResults, type RuleResult } from './result.js';
 import type { CompatibilityRule } from './rule.js';
 import {
@@ -35,6 +40,8 @@ export interface CompatibilityRuleContext {
   readonly intent: BuildIntent;
   readonly installationContext: InstallationContext;
   readonly policy: CapabilityPolicy;
+  readonly knowledgeSnapshots: readonly KnowledgeSnapshot[];
+  readonly evidenceSnapshot: JsonValue;
 }
 
 export type EngineRule = CompatibilityRule<CompatibilityRuleContext>;
@@ -111,6 +118,14 @@ function assertRuntimeVersions(versions: EngineVersions): void {
       `Engine installation context schema ${versions.installationContextSchemaVersion} does not match ${INSTALLATION_CONTEXT_SCHEMA_VERSION}`,
     );
   }
+  if (
+    versions.knowledgeSnapshotSchemaVersion !==
+    KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION
+  ) {
+    throw new Error(
+      `Engine knowledge snapshot schema ${versions.knowledgeSnapshotSchemaVersion} does not match ${KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION}`,
+    );
+  }
   assertUniqueIds(
     versions.providerVersions.map(({ providerId }) => providerId),
     'provider version',
@@ -144,6 +159,16 @@ function assertReplayVersions(
       'identityMapperVersion',
       snapshot.identityMapperVersion,
       versions.identityMapperVersion,
+    ],
+    [
+      'knowledgeSnapshotSchemaVersion',
+      snapshot.knowledgeSnapshotSchemaVersion,
+      versions.knowledgeSnapshotSchemaVersion,
+    ],
+    [
+      'evidencePolicyVersion',
+      snapshot.evidencePolicyVersion,
+      versions.evidencePolicyVersion,
     ],
     [
       'policyVersion',
@@ -218,17 +243,23 @@ export function createCompatibilityEngine(
     checkedAt: string,
   ): Promise<ResultSnapshot> {
     assertInput(input);
+    const knowledgeSnapshots = validateAndCanonicalizeKnowledgeSnapshots(
+      input.knowledgeSnapshots ?? [],
+    );
     const inputSnapshot = clone({
       build: input.build,
       intent: input.intent,
       installationContext: input.installationContext,
       policyProfile: input.policyProfile,
+      knowledgeSnapshots,
     });
     const evidenceSnapshot: JsonValue = clone(input.evidenceSnapshot);
     const ruleResults = await evaluateRules(rules, inputSnapshot.policyProfile, {
       build: inputSnapshot.build,
       intent: inputSnapshot.intent,
       installationContext: inputSnapshot.installationContext,
+      knowledgeSnapshots: inputSnapshot.knowledgeSnapshots,
+      evidenceSnapshot,
     });
 
     return {
