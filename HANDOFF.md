@@ -1,15 +1,16 @@
 # PCPartCheck 작업 인계
 
-## 현재 상태 — Phase 3 / v0.2.0 release candidate
+## 현재 상태 — Phase 3 COMPLETE / v0.2.0 released
 
 - 구현 branch: `feat/phase-3-pcpartcheck-v0.2`
 - 구현 base/main 계획 SHA: `35479978e7c42714703f848ac9e734f324d4fa37`
 - 계획: `docs/superpowers/plans/2026-09-20-pcpartcheck-v0.2-design-implementation-plan.md`
-- Task 1~11 구현과 release-candidate 준비는 완료했다.
-- 검증된 candidate SHA: `4fd63a3e7cfd0b9e677c95956b6686463f06a9a8`
-- candidate CI: GitHub Actions run `35516765677`, exact head SHA 일치, Windows/Ubuntu/Docker runtime 모두 PASS.
-- 이 문서는 계획에서 허용한 유일한 post-candidate HANDOFF 갱신이다. 이 문서를 기록하는 최종 commit 자체가 같은 required CI를 통과해야 Phase 3 구현 종료를 확정할 수 있다.
-- main merge, `v0.2.0` tag/GitHub Release/npm publish, deployment, HMY-PCPartCheck engine pin 변경은 시작하지 않았다.
+- Phase 3 Task 1~11과 PCPartCheck v0.2.0 release closure를 완료했다.
+- PR `#2`를 merge commit 방식으로 병합했으며 release baseline main SHA는 `bb9d9ac0264a81ab904bc98ea767c1e8fe7fb858`이다.
+- Actual main CI run `35517972628`은 exact release baseline SHA에서 Windows/Ubuntu/Docker runtime 모두 PASS했다.
+- Annotated tag `v0.2.0` object는 `d0772c24ecc591dff369b4437c6918548b4c5e20`, peeled commit은 release baseline main SHA와 같다.
+- GitHub Release ID `392469020`: `https://github.com/HoMongYi/PCPartCheck/releases/tag/v0.2.0`.
+- npm publish, deployment와 HMY-PCPartCheck engine pin 변경은 수행하지 않았다.
 
 ## Task commits
 
@@ -50,6 +51,16 @@
 - Changesets가 위 map에 맞춰 manifests, internal dependency ranges, lockfile, package changelogs를 갱신했고 pending changeset을 소비했다.
 - 공개 package 14개의 dry-run pack과 built-package consumer import smoke가 PASS했다.
 
+## Release record
+
+- Pull request: `#2` — `https://github.com/HoMongYi/PCPartCheck/pull/2`
+- Merge method: merge commit; Task 1~11 history preserved
+- Merged/release baseline main: `bb9d9ac0264a81ab904bc98ea767c1e8fe7fb858`
+- Final main CI: run `35517972628` — SUCCESS
+- Tag: annotated `v0.2.0`; object `d0772c24ecc591dff369b4437c6918548b4c5e20`; peeled `bb9d9ac0264a81ab904bc98ea767c1e8fe7fb858`
+- GitHub Release: ID `392469020`, published, non-draft, non-prerelease
+- Existing `v0.1.0` peeled commit: `e28d542ab2db5ce5d8294fe96add8942047f4a66` (unchanged)
+
 ## 구현 계약
 
 - Knowledge Snapshot은 provider/version, `collectedAt`, source provenance, CPU support/BIOS relations와 동일-provider supersession을 immutable replay input으로 보존한다.
@@ -63,16 +74,17 @@
 - Reference Policy 2.0은 `cpu-support`, `bios`, `psu-form-factor`, `exact-field-evidence`를 REQUIRED로 실행하고 `qvl`은 DISABLED로 유지한다.
 - Reference API/Demo는 12개 synthetic scenario를 실제 engine으로 실행한다. 별도 Evidence post-processing이나 두 번째 decision engine은 없다.
 
-## 검증 결과
+## 최종 검증 결과
 
-- Candidate CI run `35516765677` / SHA `4fd63a3e7cfd0b9e677c95956b6686463f06a9a8`: PASS.
+- Main CI run `35517972628` / SHA `bb9d9ac0264a81ab904bc98ea767c1e8fe7fb858`: PASS.
 - Ubuntu: frozen install, dependency boundaries, typecheck, lint, unit, integration, build, OpenAPI generation/diff, docs, version, pack, Chromium Playwright PASS.
 - Windows: 같은 verify gate와 Chromium Playwright PASS.
 - Docker runtime: Compose validation/image build/up, API/Web health, runtime endpoints, container-targeted Playwright, volume/orphan cleanup PASS.
+- Unit suite: 319 tests PASS.
 - Integration suite: 48 tests PASS.
 - Browser E2E: desktop/mobile Chromium 2 tests PASS.
-- Candidate OpenAPI deterministic SHA-256: `EACF7301CEF4155E0FD535658E6E30B2AD0F80C8E302FEB303C52F172C644A39`.
-- 첫 candidate run `35516377995`는 domain 구현이 아니라 이전 8-scenario/3-BLOCK E2E 기대값 때문에 실패했다. API 계약의 12 scenarios/5 BLOCK과 Demo `ENGINE 0.2.0 · RULESET 0.2.0` marker를 맞춘 뒤 run `35516765677`에서 세 job이 모두 통과했다.
+- OpenAPI deterministic SHA-256: `EACF7301CEF4155E0FD535658E6E30B2AD0F80C8E302FEB303C52F172C644A39`.
+- Public package dry-run pack 14개와 built-package consumer smoke PASS.
 - v0.1.0 annotated tag target `e28d542ab2db5ce5d8294fe96add8942047f4a66`과 그 history는 변경하지 않았다.
 
 ## Clean-room / network boundary
@@ -87,6 +99,6 @@
 
 - 실제 manufacturer CPU support/BIOS/QVL provider, QVL decisions, production persistence, auth/rate limit, Attachment Storage, admin/product UI는 구현하지 않았다.
 - BuildCores에 없는 M.2 key/sharing, PCIe physical/electrical, additional EPS, fan thickness 사실은 추측하지 않는다.
-- 현재 release candidate는 unpublished 상태다.
-- 다음 허용 단계는 이 HANDOFF closure commit을 push한 뒤 exact final HEAD에서 Windows/Ubuntu/Docker CI를 다시 통과시키는 것이다.
-- 그 이후의 main merge, tag/release/publish, deployment, HMY-PCPartCheck pin update는 각각 별도 승인 전까지 금지한다.
+- PCPartCheck v0.2.0 release baseline은 tag와 GitHub Release로 고정됐다. npm package는 publish하지 않았다.
+- 다음 단계는 별도 승인 후 HMY-PCPartCheck가 exact `v0.2.0` release SHA를 pin하고 compatibility adapter integration을 수행하는 것이다.
+- HMY-PCPartCheck 변경, deployment, npm publish는 각각 별도 승인 전까지 금지한다.
