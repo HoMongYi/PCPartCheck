@@ -1,6 +1,7 @@
 import type { InstallationContext } from '@pcpartcheck/core';
 import type {
   FieldEvidenceRecord,
+  FieldEvidenceRecordV4,
   FieldMeasurement,
 } from '@pcpartcheck/evidence';
 
@@ -99,7 +100,7 @@ function similarFailure(
   };
 }
 
-export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecord = {
+export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecordV4 = {
   schemaVersion: '4.0.0',
   evidenceId: 'demo-field-clearance-exact',
   status: 'APPROVED',

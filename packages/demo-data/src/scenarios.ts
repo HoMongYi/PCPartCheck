@@ -4,7 +4,16 @@ import type {
   CompatibilityDecision,
   CompatibilityStatus,
   InstallationContext,
+  JsonValue,
+  KnowledgeSnapshot,
 } from '@pcpartcheck/core';
+
+import {
+  EMPTY_FIELD_EVIDENCE_SNAPSHOT,
+  SYNTHETIC_EXACT_FIELD_EVIDENCE_SNAPSHOT,
+} from './field-evidence-v4.js';
+import { SYNTHETIC_KNOWLEDGE_SNAPSHOTS } from './knowledge.js';
+import { DEMO_SIMILARITY_QUERY } from './similar-evidence.js';
 
 export interface DemoScenario {
   readonly id: string;
@@ -166,6 +175,10 @@ function input(
     Record<string, 'REQUIRED' | 'ADVISORY' | 'DISABLED'>
   >,
   installationContext: InstallationContext = baseInstallationContext,
+  options: {
+    readonly knowledgeSnapshots?: readonly KnowledgeSnapshot[];
+    readonly evidenceSnapshot?: JsonValue;
+  } = {},
 ): CompatibilityCheckInput {
   return {
     build: { schemaVersion: '3.1.0', parts: [...parts] },
@@ -173,12 +186,16 @@ function input(
     installationContext,
     policyProfile: {
       profileId: 'synthetic-demo',
-      policyVersion: '1.0.0',
+      policyVersion: '2.0.0',
       capabilities: Object.entries(capabilityModes).map(
         ([capabilityId, mode]) => ({ capabilityId, mode }),
       ),
     },
-    evidenceSnapshot: { source: 'SYNTHETIC_DEMO' },
+    evidenceSnapshot: options.evidenceSnapshot ??
+      (EMPTY_FIELD_EVIDENCE_SNAPSHOT as unknown as JsonValue),
+    ...(options.knowledgeSnapshots === undefined
+      ? {}
+      : { knowledgeSnapshots: options.knowledgeSnapshots }),
   };
 }
 
@@ -318,5 +335,70 @@ export const DEMO_SCENARIOS: readonly DemoScenario[] = [
       { socket: 'DISABLED' },
     ),
     expectedResult: { status: 'NOT_CHECKED', decision: 'NO_DECISION' },
+  },
+  {
+    id: 'missing-cpu-support-knowledge',
+    title: 'CPU 지원 근거가 없는 구성',
+    summary: '지원 목록이 없으면 비지원으로 추정하지 않고 검토로 남깁니다.',
+    ruleIds: ['cpu-support'],
+    input: input(
+      [cpu, motherboard],
+      { 'cpu-support': 'REQUIRED' },
+      {
+        ...baseInstallationContext,
+        componentRevisions: [
+          { partId: cpu.partId, hardwareRevision: 'C1' },
+          { partId: motherboard.partId, hardwareRevision: 'R1' },
+        ],
+      },
+      { knowledgeSnapshots: [] },
+    ),
+    expectedResult: { status: 'UNKNOWN', decision: 'REVIEW' },
+  },
+  {
+    id: 'insufficient-minimum-bios',
+    title: '최소 BIOS보다 낮은 구성',
+    summary: 'Provider ordinal로 현재 BIOS와 최소 BIOS를 비교합니다.',
+    ruleIds: ['cpu-support', 'minimum-bios'],
+    input: input(
+      [cpu, motherboard],
+      { 'cpu-support': 'REQUIRED', bios: 'REQUIRED' },
+      {
+        ...baseInstallationContext,
+        componentRevisions: [
+          { partId: cpu.partId, hardwareRevision: 'C1' },
+          { partId: motherboard.partId, hardwareRevision: 'R1' },
+        ],
+        installedBiosVersion: 'F10',
+      },
+      { knowledgeSnapshots: SYNTHETIC_KNOWLEDGE_SNAPSHOTS },
+    ),
+    expectedResult: { status: 'INCOMPATIBLE', decision: 'BLOCK' },
+  },
+  {
+    id: 'supported-psu-form-factor',
+    title: 'Case가 PSU 폼팩터를 지원하는 구성',
+    summary: '정규화된 enum의 literal membership만 확인합니다.',
+    ruleIds: ['psu-form-factor'],
+    input: input(
+      [pcCase, psu],
+      { 'psu-form-factor': 'REQUIRED' },
+    ),
+    expectedResult: { status: 'PASS', decision: 'ALLOW' },
+  },
+  {
+    id: 'exact-field-evidence-failure',
+    title: '동일 revision과 context의 현장 실패 근거',
+    summary: '활성 Exact Evidence가 정상 EngineRule로 최종 판정에 참여합니다.',
+    ruleIds: ['exact-field-evidence'],
+    input: input(
+      [gpu, pcCase],
+      { 'exact-field-evidence': 'REQUIRED' },
+      DEMO_SIMILARITY_QUERY.installationContext,
+      {
+        evidenceSnapshot: SYNTHETIC_EXACT_FIELD_EVIDENCE_SNAPSHOT as unknown as JsonValue,
+      },
+    ),
+    expectedResult: { status: 'INCOMPATIBLE', decision: 'BLOCK' },
   },
 ];

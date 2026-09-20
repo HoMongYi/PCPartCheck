@@ -10,11 +10,15 @@ import {
   DEMO_SCENARIOS,
   DEMO_SIMILARITY_QUERY,
 } from '@pcpartcheck/demo-data';
+import { exactFieldEvidenceRule } from '@pcpartcheck/evidence';
 import { powerRules } from '@pcpartcheck/power';
 import {
   advisoryRules,
   clearanceRules,
+  cpuSupportRule,
+  minimumBiosRule,
   platformRules,
+  psuFormFactorRule,
   storageRules,
 } from '@pcpartcheck/rules-standard';
 import { rankSimilarFieldEvidence } from '@pcpartcheck/similarity';
@@ -26,6 +30,10 @@ const allRules: readonly EngineRule[] = [
   ...storageRules,
   ...powerRules,
   ...advisoryRules,
+  cpuSupportRule,
+  minimumBiosRule,
+  psuFormFactorRule,
+  exactFieldEvidenceRule,
 ];
 const rulesById = new Map(allRules.map((rule) => [rule.ruleId, rule]));
 

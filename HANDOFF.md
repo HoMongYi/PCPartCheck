@@ -25,11 +25,16 @@
 - v3 record와 Installation Context 2.0/2.1은 historical read union으로 유지하고, draft 생성·수정·moderation write path는 v4만 허용한다. v4 snapshot은 duplicate/dangling/self/cycle supersession을 거부하고 record/part/scope/context array를 결정론적으로 정렬한다. 승인된 successor만 parent를 비활성화하며 승인 branch는 임의 선택 없이 conflict로 보존한다.
 - 검증: Task 8 focused Evidence/Similarity/SQLite 57건, package unit 284건, integration 34건, typecheck, lint, dependency boundaries PASS. 전체 package build와 Next compile은 PASS했고, sandbox의 Next typecheck worker spawn은 `EPERM`, sandbox 밖 재실행 전달은 approval service 429로 완료되지 않았다. Root typecheck는 별도 PASS다.
 - Task 9: COMPLETE. `exactFieldEvidenceRule` (`ruleId`/`capabilityId`: `exact-field-evidence`)은 검증된 v4 envelope에서 active approved exact evidence만 읽어 하나의 정상 RuleEvaluation을 반환한다. 같은 issue/scope의 outcome 충돌과 승인 supersession branch는 `REVIEW_REQUIRED`, 무조건 실패는 `INCOMPATIBLE`, 조건부 성공은 `CONDITIONAL`, 성공은 `PASS`다.
+- Task 9 commit: `1e402f1ad5fba13bc5b6e12b3326311c342b9dcb`.
 - 규칙 내부는 issue/scope별 결과를 먼저 확정한 뒤 `INCOMPATIBLE` → `REVIEW_REQUIRED` → `CONDITIONAL` → `PASS` 순으로 결합한다. 따라서 독립 scope의 성공이 확정 실패를 지우지 않고, Similar/mismatch evidence는 `NOT_CHECKED`로 남는다. Core aggregation을 호출하거나 다른 RuleResult를 수정하지 않는다.
 - 검증: Task 9 RED 12건, focused Evidence/Core 76건, package unit 297건, integration 34건, typecheck, lint, dependency boundaries, Evidence package build PASS.
+- Task 10: COMPLETE. 공개 compatibility DTO는 optional Knowledge Snapshot 1.0 입력, Field Evidence 4.0 envelope, Result Snapshot 3.0의 knowledge/evidence policy version과 relation provenance를 노출한다. HTTP composition은 생략된 Knowledge를 빈 배열로 정규화하고, 제공된 Knowledge와 Evidence를 각각 Core/Evidence validator로 검증한 뒤 Engine에 전달한다.
+- Reference Policy `2.0.0`은 `cpu-support`, `bios`, `psu-form-factor`, `exact-field-evidence`를 REQUIRED로 실행하고 `qvl`은 DISABLED로 유지한다. synthetic scenario 12건은 missing CPU knowledge, insufficient BIOS, PSU form factor, exact field failure를 포함하며 별도 Evidence 후처리 없이 EngineRule 결과만 사용한다.
+- Task 10의 모든 fixture는 provider-neutral synthetic ID와 `example.invalid` provenance만 사용한다. generated OpenAPI는 동일 입력에서 SHA-256 `3BDC6F607AC151736C9D076253D537228878DA1B9BCBDEC37796BA987D1016F2`로 재생성 결정성을 확인했다.
+- 검증: Task 10 RED 11건, focused API/vertical slice 47건, package unit 301건, integration 48건, typecheck, lint, dependency boundaries PASS. 모든 package와 Reference API build 및 Demo Web compile은 PASS했다. sandbox의 Vitest config/Next typecheck child process는 `spawn EPERM`, sandbox 밖 재실행 전달은 approval service 429로 완료되지 않았으며 root typecheck와 native-config test로 동일 변경 범위를 검증했다.
 - 공개 package와 engine version은 `0.1.0`을 유지한다. v0.2.0 tag/release와 Changeset은 만들지 않았다.
 - clean-room 경계: 외부 network/provider 접근과 Compuzone-specific code/data는 0이며 HMY-PCPartCheck는 변경하지 않았다.
-- Task 10: NOT STARTED. public DTO, synthetic composition, Reference Policy 2.0 통합은 Task 9 commit 이후 시작한다.
+- Task 11: NOT STARTED. version, public docs, portability, release-candidate gate는 Task 10 commit 이후 시작한다.
 
 ## v0.1.0 기준선
 
@@ -49,7 +54,7 @@ GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu D
 - Standard RuleSet: `0.1.0`
 - Identity Mapper: `1.1.0`
 - BuildCores Adapter: `3.0.0`
-- Reference Policy: `1.0.0`
+- Reference Policy: `2.0.0`
 
 각 숫자는 독립된 domain이다. `corepack pnpm version:check`가 package manifest, runtime constant, public export, Reference Snapshot metadata를 함께 비교한다.
 

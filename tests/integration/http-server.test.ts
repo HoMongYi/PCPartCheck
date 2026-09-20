@@ -35,13 +35,15 @@ async function createServer(
     .buildHttpServer;
   expect(candidate, 'buildHttpServer must be exported').toBeTypeOf('function');
   const resultSnapshot = {
-      snapshotFormatVersion: '2.0.0',
+      snapshotFormatVersion: '3.0.0',
       checkedAt: '2026-09-08T00:00:00.000Z',
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
       policyVersion: '1.0.0',
       canonicalSchemaVersion: '3.1.0',
       installationContextSchemaVersion: '2.1.0',
+      knowledgeSnapshotSchemaVersion: '1.0.0',
+      evidencePolicyVersion: '1.0.0',
       identityMapperVersion: '1.1.0',
       providerVersions: [],
       inputSnapshot: {
@@ -49,8 +51,9 @@ async function createServer(
         intent: validCheckRequest.intent,
         installationContext: validCheckRequest.installationContext,
         policyProfile: validCheckRequest.policyProfile,
+        knowledgeSnapshots: [],
       },
-      evidenceSnapshot: {},
+      evidenceSnapshot: validCheckRequest.evidenceSnapshot,
       resultSnapshot: {
         status: 'PASS',
         decision: 'ALLOW',
@@ -282,7 +285,11 @@ const validCheckRequest = {
     policyVersion: '1.0.0',
     capabilities: [],
   },
-  evidenceSnapshot: {},
+  evidenceSnapshot: {
+    fieldEvidenceSchemaVersion: '4.0.0',
+    evidencePolicyVersion: '1.0.0',
+    records: [],
+  },
 } as const;
 
 describe('Fastify reference API', () => {
