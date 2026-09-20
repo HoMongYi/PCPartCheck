@@ -85,6 +85,8 @@ const installationContext: InstallationContext = {
     native12V2x6CableCount: 0,
     adapterUsed: false,
   },
+  componentRevisions: [{ partId: cpu.partId, hardwareRevision: 'A1' }],
+  installedBiosVersion: 'F12',
 };
 
 describe('SQLite migrations', () => {
@@ -152,14 +154,24 @@ describe('SQLite repositories', () => {
       rawUnit: 'cm',
     };
     const fieldEvidence: FieldEvidenceRecord = {
-      schemaVersion: '3.0.0',
+      schemaVersion: '4.0.0',
       evidenceId: 'field-clearance',
       status: 'APPROVED',
       visibility: 'PUBLIC',
       redaction: 'NONE',
       outcome: 'ASSEMBLY_FAILURE',
       issueType: 'PHYSICAL_CLEARANCE',
-      parts: [{ category: 'CPU', partId: cpu.partId }],
+      parts: [{ category: 'CPU', partId: cpu.partId, hardwareRevision: 'A1' }],
+      exactScope: {
+        requiredPartCategories: ['CPU'],
+        requiredContextFields: [
+          'radiators',
+          'hddCages',
+          'gpuOrientation',
+          'installedBiosVersion',
+          'componentRevisions',
+        ],
+      },
       installationContext,
       measurements: [
         {

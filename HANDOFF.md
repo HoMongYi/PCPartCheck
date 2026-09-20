@@ -20,10 +20,12 @@
 - Provider별 minimum version과 sufficient/insufficient 결과는 독립적으로 계산한 뒤 결합한다. 서로 다른 minimum, 중복·누락된 installed release mapping, 엇갈린 ordinal 결과는 임의 선택 없이 review로 남기며 support/minimum/installed release relation ID를 정렬된 provenance로 보존한다.
 - Task 7: COMPLETE. `psuFormFactorRule`은 Case의 `supportedPsuFormFactors`와 optional PSU `formFactor` 사이의 literal membership만 평가한다. 명시적 포함은 `PASS`, 명시적 비포함은 `INCOMPATIBLE`, Case/PSU 또는 어느 쪽 spec이든 누락되면 `UNKNOWN`이다.
 - PSU form-factor 평가는 기존 PSU length clearance와 독립적이며 alias, normalization, 치수 추론, 제조사 예외를 사용하지 않는다.
-- 검증: Task 7 focused/clearance 19건, rules-standard 93건, Core 52건, Provider SDK 5건, unit 275건, integration 34건, typecheck, lint, dependency boundaries, docs, 전체 build PASS.
+- Task 8: COMPLETE. Field Evidence `4.0.0`과 Evidence Policy `1.0.0`은 complete part scope, 모든 선택 부품의 hardware revision, installed BIOS, 이슈별 material context가 모두 존재하고 일치할 때만 자동 `EXACT`를 허용한다. 누락·불일치·불완전 scope와 `THERMAL`은 `SIMILAR`이며 자동 Status/Decision을 만들지 않는다.
+- v3 record와 Installation Context 2.0/2.1은 historical read union으로 유지하고, draft 생성·수정·moderation write path는 v4만 허용한다. v4 snapshot은 duplicate/dangling/self/cycle supersession을 거부하고 record/part/scope/context array를 결정론적으로 정렬한다. 승인된 successor만 parent를 비활성화하며 승인 branch는 임의 선택 없이 conflict로 보존한다.
+- 검증: Task 8 focused Evidence/Similarity/SQLite 57건, package unit 284건, integration 34건, typecheck, lint, dependency boundaries PASS. 전체 package build와 Next compile은 PASS했고, sandbox의 Next typecheck worker spawn은 `EPERM`, sandbox 밖 재실행 전달은 approval service 429로 완료되지 않았다. Root typecheck는 별도 PASS다.
 - 공개 package와 engine version은 `0.1.0`을 유지한다. v0.2.0 tag/release와 Changeset은 만들지 않았다.
 - clean-room 경계: 외부 network/provider 접근과 Compuzone-specific code/data는 0이며 HMY-PCPartCheck는 변경하지 않았다.
-- Task 8: NOT STARTED. 사용자 승인 전 Field Evidence 4.0 exact applicability를 시작하지 않는다.
+- Task 9: NOT STARTED. `exact-field-evidence` EngineRule은 Task 8 commit 이후 시작한다.
 
 ## v0.1.0 기준선
 
@@ -37,7 +39,8 @@ GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu D
 - Canonical Schema: `3.1.0`
 - Installation Context: `2.1.0`
 - Knowledge Snapshot: `1.0.0`
-- Field Evidence: `3.0.0`
+- Field Evidence: `4.0.0` (historical read: `3.0.0`)
+- Evidence Policy: `1.0.0`
 - Result Snapshot: `3.0.0`
 - Standard RuleSet: `0.1.0`
 - Identity Mapper: `1.1.0`

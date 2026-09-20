@@ -31,6 +31,7 @@ describe('reference API composition', () => {
     const visibilities = ['PUBLIC', 'STAFF_ONLY', 'ADMIN_ONLY'] as const;
     for (const [index, visibility] of visibilities.entries()) {
       const evidenceId = `scope-${visibility.toLocaleLowerCase('en-US')}`;
+      const partId = `30000000-0000-4000-8000-00000000000${index + 1}`;
       await services.createFieldEvidence(
         {
           evidenceId,
@@ -40,9 +41,23 @@ describe('reference API composition', () => {
           issueType: 'STORAGE_RESOURCE',
           parts: [{
             category: 'STORAGE',
-            partId: `30000000-0000-4000-8000-00000000000${index + 1}`,
+            partId,
+            hardwareRevision: 'A1',
           }],
-          installationContext,
+          exactScope: {
+            requiredPartCategories: ['STORAGE'],
+            requiredContextFields: [
+              'occupiedPcieSlotIds',
+              'installedBiosVersion',
+              'componentRevisions',
+            ],
+          },
+          installationContext: {
+            ...installationContext,
+            occupiedPcieSlotIds: [],
+            componentRevisions: [{ partId, hardwareRevision: 'A1' }],
+            installedBiosVersion: 'F12',
+          },
           reportedAt: '2026-09-09T00:00:00.000Z',
         },
         { principalId: 'scope-writer', at: '2026-09-09T00:00:00.000Z' },

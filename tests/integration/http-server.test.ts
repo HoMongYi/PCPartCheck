@@ -68,7 +68,7 @@ async function createServer(
       },
     } as const;
   const fieldEvidence: FieldEvidenceRecord = {
-    schemaVersion: '3.0.0',
+    schemaVersion: '4.0.0',
     evidenceId: 'field-1',
     status: 'DRAFT',
     visibility: 'PUBLIC',
@@ -76,9 +76,36 @@ async function createServer(
     outcome: 'ASSEMBLY_FAILURE',
     issueType: 'PHYSICAL_CLEARANCE',
     parts: [
-      { category: 'GPU', partId: '11111111-1111-4111-8111-111111111111' },
+      {
+        category: 'GPU',
+        partId: '11111111-1111-4111-8111-111111111111',
+        hardwareRevision: 'A1',
+      },
     ],
-    installationContext: validCheckRequest.installationContext as unknown as FieldEvidenceRecord['installationContext'],
+    exactScope: {
+      requiredPartCategories: ['GPU'],
+      requiredContextFields: [
+        'radiators',
+        'hddCages',
+        'gpuOrientation',
+        'installedBiosVersion',
+        'componentRevisions',
+      ],
+    },
+    installationContext: {
+      ...validCheckRequest.installationContext,
+      radiators: [...validCheckRequest.installationContext.radiators],
+      hddCages: [...validCheckRequest.installationContext.hddCages],
+      occupiedPcieSlotIds: [
+        ...validCheckRequest.installationContext.occupiedPcieSlotIds,
+      ],
+      pciePower: { ...validCheckRequest.installationContext.pciePower },
+      componentRevisions: [{
+        partId: '11111111-1111-4111-8111-111111111111',
+        hardwareRevision: 'A1',
+      }],
+      installedBiosVersion: 'F12',
+    },
     attachments: [
       {
         attachmentId: 'demo-photo-1',
@@ -93,7 +120,9 @@ async function createServer(
     createdAt: '2026-09-08T00:00:00.000Z',
     updatedAt: '2026-09-08T00:00:00.000Z',
   };
-  const fieldEvidenceStore = new Map([[fieldEvidence.evidenceId, fieldEvidence]]);
+  const fieldEvidenceStore = new Map<string, FieldEvidenceRecord>([
+    [fieldEvidence.evidenceId, fieldEvidence],
+  ]);
   const services = {
     checkCompatibility: vi.fn(async () => resultSnapshot),
     checkCompatibilityBatch: vi.fn(async () => ({ results: [resultSnapshot] })),
@@ -477,9 +506,30 @@ describe('Fastify reference API', () => {
       outcome: 'ASSEMBLY_FAILURE',
       issueType: 'PHYSICAL_CLEARANCE',
       parts: [
-        { category: 'GPU', partId: '11111111-1111-4111-8111-111111111111' },
+        {
+          category: 'GPU',
+          partId: '11111111-1111-4111-8111-111111111111',
+          hardwareRevision: 'A1',
+        },
       ],
-      installationContext: validCheckRequest.installationContext,
+      exactScope: {
+        requiredPartCategories: ['GPU'],
+        requiredContextFields: [
+          'radiators',
+          'hddCages',
+          'gpuOrientation',
+          'installedBiosVersion',
+          'componentRevisions',
+        ],
+      },
+      installationContext: {
+        ...validCheckRequest.installationContext,
+        componentRevisions: [{
+          partId: '11111111-1111-4111-8111-111111111111',
+          hardwareRevision: 'A1',
+        }],
+        installedBiosVersion: 'F12',
+      },
       reportedAt: '2026-09-08T00:00:00.000Z',
     };
 

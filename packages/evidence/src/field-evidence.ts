@@ -1,19 +1,32 @@
 import {
   CanonicalUnitSchema,
+  ComponentRevisionSchema,
+  GpuOrientationSchema,
   InstallationContextSchema,
+  InstalledHddCageSchema,
+  InstalledRadiatorSchema,
+  JsonValueSchema,
   PartIdSchema,
+  PciePowerInstallationSchema,
   type InstallationContext,
+  type JsonValue,
   type RuleCondition,
   type RuleEvaluation,
 } from '@pcpartcheck/core';
-import { Type, type Static } from '@sinclair/typebox';
+import { Type, type Static, type TSchema } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
 
-/*
- * Visibility controls who may read a report. Redaction records whether details
- * were transformed before the record crossed that access boundary.
- */
-export const FIELD_EVIDENCE_SCHEMA_VERSION = '3.0.0' as const;
+import {
+  ExactEvidenceScopeSchema,
+  assertValidExactEvidenceScope,
+  isAutomaticExactIssue,
+  type ExactEvidenceScope,
+  type MaterialContextField,
+} from './evidence-policy.js';
+import { FIELD_EVIDENCE_POLICY_VERSION } from './evidence-policy.js';
+
+export const FIELD_EVIDENCE_SCHEMA_VERSION = '4.0.0' as const;
+export const LEGACY_FIELD_EVIDENCE_SCHEMA_VERSION = '3.0.0' as const;
 
 export const FieldEvidenceStatusSchema = Type.Union([
   Type.Literal('DRAFT'),
@@ -66,8 +79,16 @@ const PartCategorySchema = Type.Union([
   Type.Literal('PCIE_CARD'),
 ]);
 
-export const FieldEvidencePartReferenceSchema = Type.Object(
+export const FieldEvidencePartReferenceV3Schema = Type.Object(
   { category: PartCategorySchema, partId: PartIdSchema },
+  { additionalProperties: false },
+);
+export const FieldEvidencePartReferenceSchema = Type.Object(
+  {
+    category: PartCategorySchema,
+    partId: PartIdSchema,
+    hardwareRevision: Type.Optional(Type.String({ minLength: 1 })),
+  },
   { additionalProperties: false },
 );
 
@@ -103,35 +124,62 @@ export const AttachmentReferenceSchema = Type.Object(
 );
 export type AttachmentReference = Static<typeof AttachmentReferenceSchema>;
 
-const FieldEvidenceBaseProperties = {
-    schemaVersion: Type.Literal(FIELD_EVIDENCE_SCHEMA_VERSION),
-    evidenceId: Type.String({ minLength: 1 }),
-    status: FieldEvidenceStatusSchema,
-    visibility: FieldEvidenceVisibilitySchema,
-    redaction: FieldEvidenceRedactionSchema,
-    outcome: FieldEvidenceOutcomeSchema,
-    issueType: FieldEvidenceIssueTypeSchema,
-    parts: Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
-    installationContext: InstallationContextSchema,
-    measurements: Type.Optional(Type.Array(FieldMeasurementSchema)),
-    conditions: Type.Optional(
-      Type.Array(FieldEvidenceConditionSchema, { minItems: 1 }),
+const LegacyInstallationContextSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal('2.0.0'),
+    radiators: Type.Optional(Type.Array(InstalledRadiatorSchema)),
+    hddCages: Type.Optional(Type.Array(InstalledHddCageSchema)),
+    gpuOrientation: Type.Optional(GpuOrientationSchema),
+    occupiedPcieSlotIds: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
     ),
-    attachments: Type.Optional(Type.Array(AttachmentReferenceSchema)),
-    reportedAt: Type.String({ minLength: 1 }),
-    createdByPrincipalId: Type.String({ minLength: 1 }),
-    createdAt: Type.String({ minLength: 1 }),
-    updatedAt: Type.String({ minLength: 1 }),
-    moderatedByPrincipalId: Type.Optional(Type.String({ minLength: 1 })),
-    moderatedAt: Type.Optional(Type.String({ minLength: 1 })),
-    moderationReason: Type.Optional(Type.String({ minLength: 1 })),
-    supersedesEvidenceId: Type.Optional(Type.String({ minLength: 1 })),
-} as const;
+    pciePower: Type.Optional(PciePowerInstallationSchema),
+    installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
+    customFacts: Type.Optional(Type.Record(Type.String(), JsonValueSchema)),
+  },
+  { additionalProperties: false },
+);
+const HistoricalInstallationContextSchema = Type.Union([
+  LegacyInstallationContextSchema,
+  InstallationContextSchema,
+]);
 
-const FieldEvidenceRecordBaseSchema = Type.Object(FieldEvidenceBaseProperties, {
-  additionalProperties: false,
-});
-export const FieldEvidenceRecordTransportSchema = FieldEvidenceRecordBaseSchema;
+const installationContextTransportProperties = {
+  radiators: Type.Optional(Type.Array(InstalledRadiatorSchema)),
+  hddCages: Type.Optional(Type.Array(InstalledHddCageSchema)),
+  gpuOrientation: Type.Optional(GpuOrientationSchema),
+  occupiedPcieSlotIds: Type.Optional(
+    Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
+  ),
+  pciePower: Type.Optional(PciePowerInstallationSchema),
+  installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
+  customFacts: Type.Optional(Type.Record(Type.String(), Type.Any())),
+} as const;
+const HistoricalInstallationContextTransportSchema = Type.Union([
+  Type.Object(
+    {
+      schemaVersion: Type.Literal('2.0.0'),
+      ...installationContextTransportProperties,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal('2.1.0'),
+      ...installationContextTransportProperties,
+      componentRevisions: Type.Optional(Type.Array(ComponentRevisionSchema)),
+    },
+    { additionalProperties: false },
+  ),
+]);
+const InstallationContextTransportSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal('2.1.0'),
+    ...installationContextTransportProperties,
+    componentRevisions: Type.Optional(Type.Array(ComponentRevisionSchema)),
+  },
+  { additionalProperties: false },
+);
 
 const FieldEvidenceOutcomeConstraintSchema = Type.Union([
   Type.Intersect([
@@ -166,34 +214,101 @@ const FieldEvidenceStateConstraintSchema = Type.Union([
   }),
 ]);
 
-export const FieldEvidenceRecordSchema = Type.Intersect([
-  FieldEvidenceRecordBaseSchema,
-  FieldEvidenceOutcomeConstraintSchema,
-  FieldEvidenceStateConstraintSchema,
-]);
-
-const FieldEvidenceDraftBaseProperties = {
-  evidenceId: FieldEvidenceBaseProperties.evidenceId,
-  visibility: FieldEvidenceBaseProperties.visibility,
-  redaction: FieldEvidenceBaseProperties.redaction,
-  outcome: FieldEvidenceBaseProperties.outcome,
-  issueType: FieldEvidenceBaseProperties.issueType,
-  parts: FieldEvidenceBaseProperties.parts,
-  installationContext: FieldEvidenceBaseProperties.installationContext,
-  measurements: FieldEvidenceBaseProperties.measurements,
-  conditions: FieldEvidenceBaseProperties.conditions,
-  attachments: FieldEvidenceBaseProperties.attachments,
-  reportedAt: FieldEvidenceBaseProperties.reportedAt,
-  supersedesEvidenceId: FieldEvidenceBaseProperties.supersedesEvidenceId,
+const commonProperties = {
+  evidenceId: Type.String({ minLength: 1 }),
+  status: FieldEvidenceStatusSchema,
+  visibility: FieldEvidenceVisibilitySchema,
+  redaction: FieldEvidenceRedactionSchema,
+  outcome: FieldEvidenceOutcomeSchema,
+  issueType: FieldEvidenceIssueTypeSchema,
+  measurements: Type.Optional(Type.Array(FieldMeasurementSchema)),
+  conditions: Type.Optional(Type.Array(FieldEvidenceConditionSchema, { minItems: 1 })),
+  attachments: Type.Optional(Type.Array(AttachmentReferenceSchema)),
+  reportedAt: Type.String({ minLength: 1 }),
+  createdByPrincipalId: Type.String({ minLength: 1 }),
+  createdAt: Type.String({ minLength: 1 }),
+  updatedAt: Type.String({ minLength: 1 }),
+  moderatedByPrincipalId: Type.Optional(Type.String({ minLength: 1 })),
+  moderatedAt: Type.Optional(Type.String({ minLength: 1 })),
+  moderationReason: Type.Optional(Type.String({ minLength: 1 })),
+  supersedesEvidenceId: Type.Optional(Type.String({ minLength: 1 })),
 } as const;
 
-const FieldEvidenceDraftInputBaseSchema = Type.Object(
-  FieldEvidenceDraftBaseProperties,
+const FieldEvidenceRecordV3BaseSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(LEGACY_FIELD_EVIDENCE_SCHEMA_VERSION),
+    ...commonProperties,
+    parts: Type.Array(FieldEvidencePartReferenceV3Schema, { minItems: 1 }),
+    installationContext: HistoricalInstallationContextSchema,
+  },
   { additionalProperties: false },
 );
 
+const FieldEvidenceRecordV4BaseSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(FIELD_EVIDENCE_SCHEMA_VERSION),
+    ...commonProperties,
+    parts: Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
+    exactScope: ExactEvidenceScopeSchema,
+    installationContext: InstallationContextSchema,
+  },
+  { additionalProperties: false },
+);
+
+export const FieldEvidenceRecordV3Schema = Type.Intersect([
+  FieldEvidenceRecordV3BaseSchema,
+  FieldEvidenceOutcomeConstraintSchema,
+  FieldEvidenceStateConstraintSchema,
+]);
+export const FieldEvidenceRecordV4Schema = Type.Intersect([
+  FieldEvidenceRecordV4BaseSchema,
+  FieldEvidenceOutcomeConstraintSchema,
+  FieldEvidenceStateConstraintSchema,
+]);
+export const FieldEvidenceRecordSchema = Type.Union([
+  FieldEvidenceRecordV3Schema,
+  FieldEvidenceRecordV4Schema,
+]);
+export const FieldEvidenceRecordTransportSchema = Type.Union([
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(LEGACY_FIELD_EVIDENCE_SCHEMA_VERSION),
+      ...commonProperties,
+      parts: Type.Array(FieldEvidencePartReferenceV3Schema, { minItems: 1 }),
+      installationContext: HistoricalInstallationContextTransportSchema,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(FIELD_EVIDENCE_SCHEMA_VERSION),
+      ...commonProperties,
+      parts: Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
+      exactScope: ExactEvidenceScopeSchema,
+      installationContext: InstallationContextTransportSchema,
+    },
+    { additionalProperties: false },
+  ),
+]);
+
+const draftProperties = {
+  evidenceId: commonProperties.evidenceId,
+  visibility: commonProperties.visibility,
+  redaction: commonProperties.redaction,
+  outcome: commonProperties.outcome,
+  issueType: commonProperties.issueType,
+  parts: Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
+  exactScope: ExactEvidenceScopeSchema,
+  installationContext: InstallationContextSchema,
+  measurements: commonProperties.measurements,
+  conditions: commonProperties.conditions,
+  attachments: commonProperties.attachments,
+  reportedAt: commonProperties.reportedAt,
+  supersedesEvidenceId: commonProperties.supersedesEvidenceId,
+} as const;
+
 export const FieldEvidenceDraftInputSchema = Type.Intersect([
-  FieldEvidenceDraftInputBaseSchema,
+  Type.Object(draftProperties, { additionalProperties: false }),
   FieldEvidenceOutcomeConstraintSchema,
 ]);
 
@@ -203,14 +318,11 @@ export const FieldEvidencePatchSchema = Type.Object(
     redaction: Type.Optional(FieldEvidenceRedactionSchema),
     outcome: Type.Optional(FieldEvidenceOutcomeSchema),
     issueType: Type.Optional(FieldEvidenceIssueTypeSchema),
-    parts: Type.Optional(
-      Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 }),
-    ),
+    parts: Type.Optional(Type.Array(FieldEvidencePartReferenceSchema, { minItems: 1 })),
+    exactScope: Type.Optional(ExactEvidenceScopeSchema),
     installationContext: Type.Optional(InstallationContextSchema),
     measurements: Type.Optional(Type.Array(FieldMeasurementSchema)),
-    conditions: Type.Optional(
-      Type.Array(FieldEvidenceConditionSchema, { minItems: 1 }),
-    ),
+    conditions: Type.Optional(Type.Array(FieldEvidenceConditionSchema, { minItems: 1 })),
     attachments: Type.Optional(Type.Array(AttachmentReferenceSchema)),
   },
   { additionalProperties: false, minProperties: 1 },
@@ -225,22 +337,55 @@ export const FieldEvidenceQuerySchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const FieldEvidenceSnapshotSchema = Type.Object(
+  {
+    fieldEvidenceSchemaVersion: Type.Literal(FIELD_EVIDENCE_SCHEMA_VERSION),
+    evidencePolicyVersion: Type.Literal(FIELD_EVIDENCE_POLICY_VERSION),
+    records: Type.Array(FieldEvidenceRecordV4Schema),
+  },
+  { additionalProperties: false },
+);
+
+export type FieldEvidencePartReferenceV3 = Static<
+  typeof FieldEvidencePartReferenceV3Schema
+>;
 export type FieldEvidencePartReference = Static<
   typeof FieldEvidencePartReferenceSchema
 >;
 export type FieldMeasurement = Static<typeof FieldMeasurementSchema>;
 export type FieldEvidenceDraftInput = Static<typeof FieldEvidenceDraftInputSchema>;
 export type FieldEvidencePatch = Static<typeof FieldEvidencePatchSchema>;
-export type FieldEvidenceRecord = Omit<
-  Static<typeof FieldEvidenceRecordSchema>,
+type FieldEvidenceRecordV3Value = Static<typeof FieldEvidenceRecordV3Schema>;
+type FieldEvidenceRecordV4Value = Static<typeof FieldEvidenceRecordV4Schema>;
+type LegacyInstallationContextValue = Static<typeof LegacyInstallationContextSchema>;
+export type LegacyInstallationContext = Omit<
+  LegacyInstallationContextValue,
+  'customFacts'
+> & {
+  readonly customFacts?: Readonly<Record<string, JsonValue>>;
+};
+export type FieldEvidenceRecordV3 = Omit<
+  FieldEvidenceRecordV3Value,
+  'installationContext' | 'parts' | 'measurements' | 'conditions' | 'attachments'
+> & {
+  readonly parts: readonly FieldEvidencePartReferenceV3[];
+  readonly installationContext: InstallationContext | LegacyInstallationContext;
+  readonly measurements?: readonly FieldMeasurement[];
+  readonly conditions?: readonly RuleCondition[];
+  readonly attachments?: readonly AttachmentReference[];
+};
+export type FieldEvidenceRecordV4 = Omit<
+  FieldEvidenceRecordV4Value,
   'installationContext' | 'parts' | 'measurements' | 'conditions' | 'attachments'
 > & {
   readonly parts: readonly FieldEvidencePartReference[];
+  readonly exactScope: ExactEvidenceScope;
   readonly installationContext: InstallationContext;
   readonly measurements?: readonly FieldMeasurement[];
   readonly conditions?: readonly RuleCondition[];
   readonly attachments?: readonly AttachmentReference[];
 };
+export type FieldEvidenceRecord = FieldEvidenceRecordV3 | FieldEvidenceRecordV4;
 export type FieldEvidenceQuery = Omit<
   Static<typeof FieldEvidenceQuerySchema>,
   'installationContext' | 'parts'
@@ -248,6 +393,11 @@ export type FieldEvidenceQuery = Omit<
   readonly parts: readonly FieldEvidencePartReference[];
   readonly installationContext: InstallationContext;
 };
+export interface FieldEvidenceSnapshot {
+  readonly fieldEvidenceSchemaVersion: typeof FIELD_EVIDENCE_SCHEMA_VERSION;
+  readonly evidencePolicyVersion: typeof FIELD_EVIDENCE_POLICY_VERSION;
+  readonly records: readonly FieldEvidenceRecordV4[];
+}
 
 export type FieldEvidenceMatch = 'EXACT' | 'SIMILAR' | 'NONE';
 
@@ -270,7 +420,16 @@ export class FieldEvidenceStateConflictError extends Error {
   }
 }
 
-function assertSchema(schema: Parameters<typeof Value.Check>[0], value: unknown): void {
+export class InvalidFieldEvidenceSnapshotError extends Error {
+  readonly code = 'INVALID_FIELD_EVIDENCE_SNAPSHOT';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidFieldEvidenceSnapshotError';
+  }
+}
+
+function assertSchema(schema: TSchema, value: unknown): void {
   if (!Value.Check(schema, value)) {
     throw new TypeError('Field evidence does not match its public schema');
   }
@@ -283,7 +442,7 @@ function cloneJsonValue<T>(value: T): T {
 export function createDraftFieldEvidence(
   input: FieldEvidenceDraftInput,
   audit: FieldEvidenceMutationAudit,
-): FieldEvidenceRecord {
+): FieldEvidenceRecordV4 {
   assertSchema(FieldEvidenceDraftInputSchema, input);
   const record = {
     ...cloneJsonValue(input),
@@ -293,38 +452,39 @@ export function createDraftFieldEvidence(
     createdAt: audit.at,
     updatedAt: audit.at,
   };
-  assertSchema(FieldEvidenceRecordSchema, record);
-  return record as FieldEvidenceRecord;
+  assertSchema(FieldEvidenceRecordV4Schema, record);
+  return record as FieldEvidenceRecordV4;
 }
 
 export function patchDraftFieldEvidence(
   record: FieldEvidenceRecord,
   patch: FieldEvidencePatch,
   audit: FieldEvidenceMutationAudit,
-): FieldEvidenceRecord {
+): FieldEvidenceRecordV4 {
   if (record.status !== 'DRAFT') {
-    throw new FieldEvidenceStateConflictError(
-      'Only DRAFT field evidence can be changed',
-    );
+    throw new FieldEvidenceStateConflictError('Only DRAFT field evidence can be changed');
+  }
+  if (record.schemaVersion !== FIELD_EVIDENCE_SCHEMA_VERSION) {
+    throw new FieldEvidenceStateConflictError('Historical field evidence is read-only');
   }
   assertSchema(FieldEvidencePatchSchema, patch);
-  const updated = {
-    ...record,
-    ...cloneJsonValue(patch),
-    updatedAt: audit.at,
-  };
-  assertSchema(FieldEvidenceRecordSchema, updated);
-  return updated as FieldEvidenceRecord;
+  const updated = { ...record, ...cloneJsonValue(patch), updatedAt: audit.at };
+  assertSchema(FieldEvidenceRecordV4Schema, updated);
+  return updated as FieldEvidenceRecordV4;
 }
 
 export function moderateFieldEvidence(
   record: FieldEvidenceRecord,
   moderation: FieldEvidenceModeration,
-): FieldEvidenceRecord {
+): FieldEvidenceRecordV4 {
   if (record.status !== 'DRAFT') {
-    throw new FieldEvidenceStateConflictError(
-      'Only DRAFT field evidence can be moderated',
-    );
+    throw new FieldEvidenceStateConflictError('Only DRAFT field evidence can be moderated');
+  }
+  if (record.schemaVersion !== FIELD_EVIDENCE_SCHEMA_VERSION) {
+    throw new FieldEvidenceStateConflictError('Historical field evidence is read-only');
+  }
+  if (moderation.action === 'APPROVE') {
+    assertValidExactEvidenceScope(record.issueType, record.parts, record.exactScope);
   }
   const moderated = {
     ...record,
@@ -332,76 +492,63 @@ export function moderateFieldEvidence(
     updatedAt: moderation.at,
     moderatedByPrincipalId: moderation.principalId,
     moderatedAt: moderation.at,
-    ...(moderation.reason === undefined
-      ? {}
-      : { moderationReason: moderation.reason }),
+    ...(moderation.reason === undefined ? {} : { moderationReason: moderation.reason }),
   };
-  assertSchema(FieldEvidenceRecordSchema, moderated);
-  return moderated as FieldEvidenceRecord;
+  assertSchema(FieldEvidenceRecordV4Schema, moderated);
+  return moderated as FieldEvidenceRecordV4;
 }
 
-function orderedParts(parts: readonly FieldEvidencePartReference[]): readonly string[] {
+function orderedPartIdentities(
+  parts: readonly { readonly category: string; readonly partId: string }[],
+): readonly string[] {
   return parts
     .map((part) => `${part.category}:${part.partId}`)
     .sort((left, right) => left.localeCompare(right));
 }
 
-function orderedInstallationContext(context: InstallationContext): unknown {
-  return {
-    schemaVersion: context.schemaVersion,
-    ...(context.radiators === undefined
-      ? {}
-      : {
-          radiators: [...context.radiators].sort((left, right) =>
-            JSON.stringify(left).localeCompare(JSON.stringify(right)),
-          ),
-        }),
-    ...(context.hddCages === undefined
-      ? {}
-      : {
-          hddCages: [...context.hddCages].sort((left, right) =>
-            left.cageId.localeCompare(right.cageId),
-          ),
-        }),
-    ...(context.gpuOrientation === undefined
-      ? {}
-      : { gpuOrientation: context.gpuOrientation }),
-    ...(context.occupiedPcieSlotIds === undefined
-      ? {}
-      : {
-          occupiedPcieSlotIds: [...context.occupiedPcieSlotIds].sort(
-            (left, right) => left.localeCompare(right),
-          ),
-        }),
-    ...(context.pciePower === undefined
-      ? {}
-      : {
-          pciePower: {
-            independentCableCount: context.pciePower.independentCableCount,
-            native12VhpwrCableCount: context.pciePower.native12VhpwrCableCount,
-            native12V2x6CableCount: context.pciePower.native12V2x6CableCount,
-            adapterUsed: context.pciePower.adapterUsed,
-          },
-        }),
-    installedBiosVersion: context.installedBiosVersion ?? null,
-  };
-}
-
-function sameParts(
-  left: readonly FieldEvidencePartReference[],
-  right: readonly FieldEvidencePartReference[],
+function samePartIdentities(
+  left: readonly { readonly category: string; readonly partId: string }[],
+  right: readonly { readonly category: string; readonly partId: string }[],
 ): boolean {
-  return JSON.stringify(orderedParts(left)) === JSON.stringify(orderedParts(right));
+  return JSON.stringify(orderedPartIdentities(left)) ===
+    JSON.stringify(orderedPartIdentities(right));
 }
 
-function sameInstallationContext(
+function orderedJson(value: readonly unknown[]): string {
+  return JSON.stringify(
+    [...value].sort((left, right) =>
+      JSON.stringify(left).localeCompare(JSON.stringify(right)),
+    ),
+  );
+}
+
+function sameContextField(
+  field: MaterialContextField,
   left: InstallationContext,
   right: InstallationContext,
+  parts: readonly FieldEvidencePartReference[],
 ): boolean {
-  return (
-    JSON.stringify(orderedInstallationContext(left)) ===
-    JSON.stringify(orderedInstallationContext(right))
-  );
+  const leftValue = left[field];
+  const rightValue = right[field];
+  if (leftValue === undefined || rightValue === undefined) return false;
+
+  if (field === 'componentRevisions') {
+    const leftByPart = new Map(left.componentRevisions?.map((revision) => [revision.partId, revision]));
+    const rightByPart = new Map(right.componentRevisions?.map((revision) => [revision.partId, revision]));
+    return parts.every((part) => {
+      const evidenceRevision = part.hardwareRevision;
+      const recordedRevision = leftByPart.get(part.partId)?.hardwareRevision;
+      const selectedRevision = rightByPart.get(part.partId)?.hardwareRevision;
+      return evidenceRevision !== undefined &&
+        recordedRevision === evidenceRevision &&
+        selectedRevision === evidenceRevision;
+    });
+  }
+
+  if (Array.isArray(leftValue) && Array.isArray(rightValue)) {
+    return orderedJson(leftValue) === orderedJson(rightValue);
+  }
+  return JSON.stringify(leftValue) === JSON.stringify(rightValue);
 }
 
 export function classifyFieldEvidenceMatch(
@@ -409,13 +556,172 @@ export function classifyFieldEvidenceMatch(
   query: FieldEvidenceQuery,
 ): FieldEvidenceMatch {
   if (record.issueType !== query.issueType) return 'NONE';
-  if (
-    sameParts(record.parts, query.parts) &&
-    sameInstallationContext(record.installationContext, query.installationContext)
-  ) {
-    return 'EXACT';
+  if (record.schemaVersion !== FIELD_EVIDENCE_SCHEMA_VERSION) return 'SIMILAR';
+
+  assertValidExactEvidenceScope(record.issueType, record.parts, record.exactScope);
+  if (!isAutomaticExactIssue(record.issueType)) return 'SIMILAR';
+  if (!samePartIdentities(record.parts, query.parts)) return 'SIMILAR';
+
+  for (const field of record.exactScope.requiredContextFields) {
+    if (!sameContextField(
+      field,
+      record.installationContext,
+      query.installationContext,
+      record.parts,
+    )) {
+      return 'SIMILAR';
+    }
   }
-  return 'SIMILAR';
+  return 'EXACT';
+}
+
+function orderedInstallationContext(context: InstallationContext): InstallationContext {
+  return {
+    ...cloneJsonValue(context),
+    ...(context.radiators === undefined
+      ? {}
+      : { radiators: [...context.radiators].sort((left, right) =>
+          JSON.stringify(left).localeCompare(JSON.stringify(right))) }),
+    ...(context.hddCages === undefined
+      ? {}
+      : { hddCages: [...context.hddCages].sort((left, right) =>
+          left.cageId.localeCompare(right.cageId)) }),
+    ...(context.occupiedPcieSlotIds === undefined
+      ? {}
+      : { occupiedPcieSlotIds: [...context.occupiedPcieSlotIds].sort() }),
+    ...(context.componentRevisions === undefined
+      ? {}
+      : { componentRevisions: [...context.componentRevisions].sort((left, right) =>
+          left.partId.localeCompare(right.partId) ||
+          left.hardwareRevision.localeCompare(right.hardwareRevision)) }),
+  };
+}
+
+function canonicalizeRecord(record: FieldEvidenceRecordV4): FieldEvidenceRecordV4 {
+  return {
+    ...cloneJsonValue(record),
+    parts: [...record.parts]
+      .map(cloneJsonValue)
+      .sort((left, right) =>
+        left.category.localeCompare(right.category) ||
+        left.partId.localeCompare(right.partId) ||
+        (left.hardwareRevision ?? '').localeCompare(right.hardwareRevision ?? '')),
+    exactScope: {
+      requiredPartCategories: [...record.exactScope.requiredPartCategories].sort(),
+      requiredContextFields: [...record.exactScope.requiredContextFields].sort(),
+    },
+    installationContext: orderedInstallationContext(record.installationContext),
+  };
+}
+
+function assertSupersessionGraph(records: readonly FieldEvidenceRecordV4[]): void {
+  const byId = new Map<string, FieldEvidenceRecordV4>();
+  for (const record of records) {
+    if (byId.has(record.evidenceId)) {
+      throw new InvalidFieldEvidenceSnapshotError(
+        `Duplicate evidenceId: ${record.evidenceId}`,
+      );
+    }
+    byId.set(record.evidenceId, record);
+  }
+
+  for (const record of records) {
+    const parentId = record.supersedesEvidenceId;
+    if (parentId === undefined) continue;
+    if (parentId === record.evidenceId) {
+      throw new InvalidFieldEvidenceSnapshotError(
+        `Evidence cannot supersede itself: ${record.evidenceId}`,
+      );
+    }
+    if (!byId.has(parentId)) {
+      throw new InvalidFieldEvidenceSnapshotError(
+        `Dangling supersedesEvidenceId: ${parentId}`,
+      );
+    }
+  }
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (record: FieldEvidenceRecordV4): void => {
+    if (visited.has(record.evidenceId)) return;
+    if (visiting.has(record.evidenceId)) {
+      throw new InvalidFieldEvidenceSnapshotError(
+        `Supersession cycle includes: ${record.evidenceId}`,
+      );
+    }
+    visiting.add(record.evidenceId);
+    const parent = record.supersedesEvidenceId === undefined
+      ? undefined
+      : byId.get(record.supersedesEvidenceId);
+    if (parent !== undefined) visit(parent);
+    visiting.delete(record.evidenceId);
+    visited.add(record.evidenceId);
+  };
+  records.forEach(visit);
+}
+
+export function validateAndCanonicalizeFieldEvidenceSnapshot(
+  snapshot: FieldEvidenceSnapshot,
+): FieldEvidenceSnapshot {
+  assertSchema(FieldEvidenceSnapshotSchema, snapshot);
+  assertSupersessionGraph(snapshot.records);
+  for (const record of snapshot.records) {
+    if (record.status === 'APPROVED') {
+      assertValidExactEvidenceScope(record.issueType, record.parts, record.exactScope);
+    }
+  }
+  return {
+    fieldEvidenceSchemaVersion: FIELD_EVIDENCE_SCHEMA_VERSION,
+    evidencePolicyVersion: FIELD_EVIDENCE_POLICY_VERSION,
+    records: snapshot.records
+      .map(canonicalizeRecord)
+      .sort((left, right) => left.evidenceId.localeCompare(right.evidenceId)),
+  };
+}
+
+export interface FieldEvidenceSupersessionConflict {
+  readonly supersededEvidenceId: string;
+  readonly successorEvidenceIds: readonly string[];
+}
+
+export interface ActiveFieldEvidenceSelection {
+  readonly activeEvidenceIds: readonly string[];
+  readonly active: readonly FieldEvidenceRecordV4[];
+  readonly conflicts: readonly FieldEvidenceSupersessionConflict[];
+}
+
+export function selectActiveFieldEvidence(
+  snapshot: FieldEvidenceSnapshot,
+): ActiveFieldEvidenceSelection {
+  const canonical = validateAndCanonicalizeFieldEvidenceSnapshot(snapshot);
+  const approved = canonical.records.filter((record) => record.status === 'APPROVED');
+  const successors = new Map<string, FieldEvidenceRecordV4[]>();
+  for (const record of approved) {
+    if (record.supersedesEvidenceId === undefined) continue;
+    const existing = successors.get(record.supersedesEvidenceId) ?? [];
+    existing.push(record);
+    successors.set(record.supersedesEvidenceId, existing);
+  }
+
+  const active = approved
+    .filter((record) => !successors.has(record.evidenceId))
+    .sort((left, right) => left.evidenceId.localeCompare(right.evidenceId));
+  const conflicts = [...successors.entries()]
+    .filter(([, records]) => records.length > 1)
+    .map(([supersededEvidenceId, records]) => ({
+      supersededEvidenceId,
+      successorEvidenceIds: records
+        .map(({ evidenceId }) => evidenceId)
+        .sort((left, right) => left.localeCompare(right)),
+    }))
+    .sort((left, right) =>
+      left.supersededEvidenceId.localeCompare(right.supersededEvidenceId));
+
+  return {
+    activeEvidenceIds: active.map(({ evidenceId }) => evidenceId),
+    active,
+    conflicts,
+  };
 }
 
 function withEvidenceIds(
@@ -472,9 +778,7 @@ export function applyExactFieldEvidence(
     };
   }
 
-  const successes = exact.filter(
-    (record) => record.outcome === 'ASSEMBLY_SUCCESS',
-  );
+  const successes = exact.filter((record) => record.outcome === 'ASSEMBLY_SUCCESS');
   if (successes.length === 0) return base;
   return withEvidenceIds(
     {

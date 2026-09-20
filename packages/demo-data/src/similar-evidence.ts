@@ -23,6 +23,17 @@ const queryContext: InstallationContext = {
     native12V2x6CableCount: 0,
     adapterUsed: false,
   },
+  componentRevisions: [
+    {
+      partId: '10000000-0000-4000-8000-000000000005',
+      hardwareRevision: 'A1',
+    },
+    {
+      partId: '10000000-0000-4000-8000-000000000004',
+      hardwareRevision: 'B2',
+    },
+  ],
+  installedBiosVersion: 'F12',
 };
 
 export const DEMO_ATTACHMENT_REFERENCE = {
@@ -38,8 +49,16 @@ export const DEMO_ATTACHMENT_REFERENCE = {
 export const DEMO_SIMILARITY_QUERY = {
   issueType: 'PHYSICAL_CLEARANCE' as const,
   parts: [
-    { category: 'GPU' as const, partId: '10000000-0000-4000-8000-000000000005' },
-    { category: 'PC_CASE' as const, partId: '10000000-0000-4000-8000-000000000004' },
+    {
+      category: 'GPU' as const,
+      partId: '10000000-0000-4000-8000-000000000005',
+      hardwareRevision: 'A1',
+    },
+    {
+      category: 'PC_CASE' as const,
+      partId: '10000000-0000-4000-8000-000000000004',
+      hardwareRevision: 'B2',
+    },
   ],
   installationContext: queryContext,
   measurements: [
@@ -81,7 +100,7 @@ function similarFailure(
 }
 
 export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecord = {
-  schemaVersion: '3.0.0',
+  schemaVersion: '4.0.0',
   evidenceId: 'demo-field-clearance-exact',
   status: 'APPROVED',
   visibility: 'PUBLIC',
@@ -89,6 +108,16 @@ export const DEMO_EXACT_FIELD_EVIDENCE_RECORD: FieldEvidenceRecord = {
   outcome: 'ASSEMBLY_FAILURE',
   issueType: 'PHYSICAL_CLEARANCE',
   parts: DEMO_SIMILARITY_QUERY.parts,
+  exactScope: {
+    requiredPartCategories: ['GPU', 'PC_CASE'],
+    requiredContextFields: [
+      'radiators',
+      'hddCages',
+      'gpuOrientation',
+      'installedBiosVersion',
+      'componentRevisions',
+    ],
+  },
   installationContext: queryContext,
   measurements: DEMO_SIMILARITY_QUERY.measurements,
   attachments: [DEMO_ATTACHMENT_REFERENCE],
