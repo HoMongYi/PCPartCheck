@@ -77,6 +77,11 @@ export const MemoryQvlRecordSchema = Type.Intersect([
 ]);
 export type MemoryQvlRecord = Static<typeof MemoryQvlRecordSchema>;
 
+/**
+ * Source-specific ingress for adapters that produce provider-neutral Knowledge
+ * snapshots. Compatibility rules consume KnowledgeSnapshot values instead of
+ * these records directly.
+ */
 interface ManufacturerProviderBase {
   readonly providerId: string;
   readonly attribution: ProviderAttribution;

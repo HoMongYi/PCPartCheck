@@ -6,6 +6,7 @@ import * as sdk from '../src/index.js';
 import type {
   BiosReleaseProvider,
   CpuSupportProvider,
+  KnowledgeSnapshotProvider,
   ManufacturerSpecificationProvider,
   MemoryQvlProvider,
 } from '../src/index.js';
@@ -82,5 +83,10 @@ test('provider roles remain optional provider-neutral interfaces', () => {
   }>();
   expectTypeOf<MemoryQvlProvider>().toMatchTypeOf<{
     listMemoryQvl(motherboardPartId: string): Promise<unknown>;
+  }>();
+  expectTypeOf<KnowledgeSnapshotProvider>().toMatchTypeOf<{
+    loadKnowledgeSnapshots(query: {
+      subjectPartIds: readonly string[];
+    }): Promise<unknown>;
   }>();
 });
