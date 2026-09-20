@@ -15,10 +15,13 @@
 - 기존 `CpuSupportProvider`, `BiosReleaseProvider`, `MemoryQvlProvider`는 source-specific adapter ingress로 유지한다. Provider 구현은 저장된 fixture의 mutable reference를 호출자에게 노출하지 않는 계약이며 synthetic clone fixture로 검증했다.
 - Task 5: COMPLETE. CPU support resolver는 active Knowledge Snapshot의 exact part/revision relation만 사용하며 명시적 `SUPPORTED`, `UNSUPPORTED`, `MISSING`, `CONFLICT`를 provider-neutral 결과로 구분한다.
 - `cpuSupportRule`은 이를 각각 `PASS`, `INCOMPATIBLE`, `UNKNOWN`, `REVIEW_REQUIRED`로 매핑한다. 지원 목록의 부재를 비지원으로 추정하지 않으며, 사용 relation ID와 provider별 BIOS requirement provenance를 결정론적으로 보존한다. BIOS version/order 비교는 하지 않는다.
-- 검증: Task 5 focused/platform 21건, rules-standard 69건, Core 52건, Provider SDK 5건, unit 251건, integration 34건, typecheck, lint, dependency boundaries, docs, 전체 build PASS.
+- Task 6: COMPLETE. Minimum BIOS resolver는 Task 5 CPU support 결과를 선행 조건으로 사용하고 `NONE`, `UNKNOWN`, `MINIMUM`을 구분한다. 명시적 비지원 CPU는 `NOT_CHECKED`, 지원 정보 부재는 `UNKNOWN`, support conflict와 BIOS 비교 모호성은 `REVIEW_REQUIRED`로 보존한다.
+- 현재 BIOS는 Installation Context의 `installedBiosVersion`에서만 읽는다. 각 active provider snapshot에서 같은 motherboard/revision의 BIOS release를 정확히 하나로 매핑한 뒤 provider가 제공한 `releaseOrdinal`만 비교하며 BIOS 문자열을 정렬하거나 제조사별로 해석하지 않는다.
+- Provider별 minimum version과 sufficient/insufficient 결과는 독립적으로 계산한 뒤 결합한다. 서로 다른 minimum, 중복·누락된 installed release mapping, 엇갈린 ordinal 결과는 임의 선택 없이 review로 남기며 support/minimum/installed release relation ID를 정렬된 provenance로 보존한다.
+- 검증: Task 5+6 focused 32건, rules-standard 89건, Core 52건, Provider SDK 5건, unit 271건, integration 34건, typecheck, lint, dependency boundaries, docs, 전체 build PASS.
 - 공개 package와 engine version은 `0.1.0`을 유지한다. v0.2.0 tag/release와 Changeset은 만들지 않았다.
 - clean-room 경계: 외부 network/provider 접근과 Compuzone-specific code/data는 0이며 HMY-PCPartCheck는 변경하지 않았다.
-- Task 6: NOT STARTED. 사용자 승인 전 minimum BIOS evaluation을 시작하지 않는다.
+- Task 7: NOT STARTED. 사용자 승인 전 memory QVL evaluation을 시작하지 않는다.
 
 ## v0.1.0 기준선
 
