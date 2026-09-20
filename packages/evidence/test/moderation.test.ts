@@ -5,7 +5,15 @@ import { describe, expect, test } from 'vitest';
 
 import * as evidence from '../src/index.js';
 
-const installationContext: InstallationContext = { schemaVersion: '2.0.0' };
+const gpuId = '11111111-1111-4111-8111-111111111111';
+const installationContext: InstallationContext = {
+  schemaVersion: '2.1.0',
+  radiators: [],
+  hddCages: [],
+  gpuOrientation: 'HORIZONTAL',
+  componentRevisions: [{ partId: gpuId, hardwareRevision: 'A1' }],
+  installedBiosVersion: 'F12',
+};
 
 const draftInput = {
   evidenceId: 'field-revision-2',
@@ -14,8 +22,18 @@ const draftInput = {
   outcome: 'ASSEMBLY_FAILURE',
   issueType: 'PHYSICAL_CLEARANCE',
   parts: [
-    { category: 'GPU', partId: '11111111-1111-4111-8111-111111111111' },
+    { category: 'GPU', partId: gpuId, hardwareRevision: 'A1' },
   ],
+  exactScope: {
+    requiredPartCategories: ['GPU'],
+    requiredContextFields: [
+      'radiators',
+      'hddCages',
+      'gpuOrientation',
+      'installedBiosVersion',
+      'componentRevisions',
+    ],
+  },
   installationContext,
   reportedAt: '2026-09-09T00:00:00.000Z',
   supersedesEvidenceId: 'field-revision-1',
@@ -28,7 +46,7 @@ function exportedFunction<T>(name: string): T {
 }
 
 type CreateDraft = (
-  input: typeof draftInput,
+  input: Readonly<Record<string, unknown>>,
   audit: { readonly principalId: string; readonly at: string },
 ) => Readonly<Record<string, unknown>>;
 type PatchDraft = (
@@ -41,16 +59,17 @@ type Moderate = (
   moderation: Readonly<Record<string, unknown>>,
 ) => Readonly<Record<string, unknown>>;
 
-describe('Field Evidence 3.0 outcome contract', () => {
+describe('Field Evidence 4.0 outcome contract', () => {
   const schema = () => exportedFunction<TSchema>('FieldEvidenceRecordSchema');
   const approvedBase = {
-    schemaVersion: '3.0.0',
+    schemaVersion: '4.0.0',
     evidenceId: 'field-1',
     status: 'APPROVED',
     visibility: 'PUBLIC',
     redaction: 'NONE',
     issueType: 'PHYSICAL_CLEARANCE',
     parts: draftInput.parts,
+    exactScope: draftInput.exactScope,
     installationContext,
     reportedAt: '2026-09-09T00:00:00.000Z',
     createdByPrincipalId: 'writer-1',
@@ -97,7 +116,7 @@ describe('Field Evidence moderation state machine', () => {
     });
 
     expect(draft).toMatchObject({
-      schemaVersion: '3.0.0',
+      schemaVersion: '4.0.0',
       status: 'DRAFT',
       createdByPrincipalId: 'writer-1',
       createdAt: '2026-09-09T00:10:00.000Z',
@@ -136,6 +155,25 @@ describe('Field Evidence moderation state machine', () => {
     },
   );
 
+  test('rejects approval when the exact scope removes a policy minimum', () => {
+    const draft = createDraft()({
+      ...draftInput,
+      exactScope: {
+        ...draftInput.exactScope,
+        requiredContextFields: ['installedBiosVersion', 'componentRevisions'],
+      },
+    }, {
+      principalId: 'writer-1',
+      at: '2026-09-09T00:10:00.000Z',
+    });
+
+    expect(() => moderate()(draft, {
+      action: 'APPROVE',
+      principalId: 'admin-1',
+      at: '2026-09-09T01:00:00.000Z',
+    })).toThrow('Invalid exact evidence scope');
+  });
+
   test.each(['APPROVE', 'REJECT'] as const)(
     'keeps an %s result immutable and rejects every later patch',
     (action) => {
@@ -152,7 +190,7 @@ describe('Field Evidence moderation state machine', () => {
       expect(() => patchDraft()(finalRecord, {
         outcome: 'ASSEMBLY_SUCCESS',
         parts: [],
-        installationContext: { schemaVersion: '2.0.0' },
+        installationContext: { schemaVersion: '2.1.0' },
       }, {
         principalId: 'writer-2',
         at: '2026-09-09T02:00:00.000Z',

@@ -13,20 +13,22 @@ for (const entry of await readdir(resolve('packages'), { withFileTypes: true }))
 
 const outputPath = resolve(process.argv[2] ?? 'output/release/release-metadata.json');
 const metadata = {
-  releaseCandidate: 'v0.1.0',
+  releaseCandidate: 'v0.2.0',
   commitSha: process.env.GITHUB_SHA ?? 'local-working-tree',
   npmPublishEnabled: false,
   packages: packages.sort((left, right) => left.name.localeCompare(right.name)),
   versionDomains: {
-    engine: '0.1.0',
-    canonicalSchema: '3.0.0',
-    installationContext: '2.0.0',
-    fieldEvidence: '3.0.0',
-    resultSnapshot: '2.0.0',
-    ruleSet: '0.1.0',
+    engine: '0.2.0',
+    canonicalSchema: '3.1.0',
+    installationContext: '2.1.0',
+    knowledgeSnapshot: '1.0.0',
+    fieldEvidence: '4.0.0',
+    evidencePolicy: '1.0.0',
+    resultSnapshot: '3.0.0',
+    ruleSet: '0.2.0',
     identityMapper: '1.1.0',
     buildCoresAdapter: '3.0.0',
-    referencePolicy: '1.0.0',
+    referencePolicy: '2.0.0',
   },
 };
 

@@ -26,9 +26,11 @@ Swagger UI는 `GET /docs/`, OpenAPI JSON은 `GET /openapi.json`에서 제공합�
 
 ## 호환성 요청
 
-`POST /v1/compatibility/check` body에는 `build`, `intent`, `installationContext`, `policyProfile`, `evidenceSnapshot`이 필요합니다. 각 Schema version은 현재 runtime constant와 같아야 합니다. 응답은 Version Contract, input/evidence snapshot, 집계 결과를 포함한 `ResultSnapshot`입니다.
+`POST /v1/compatibility/check` body에는 `build`, `intent`, `installationContext`, `policyProfile`, Field Evidence v4 `evidenceSnapshot`이 필요합니다. `knowledgeSnapshots`는 생략할 수 있으며 서버가 빈 배열로 정규화합니다. 제공한 Knowledge Snapshot은 Core validator, Evidence envelope는 Evidence validator를 통과한 뒤 Rule을 실행합니다.
 
-잘못된 Canonical 또는 Installation Context는 Rule을 실행하기 전에 400으로 거부합니다. 지원하지 않는 과거 Schema를 조용히 현재 의미로 읽지 않습니다.
+응답은 Snapshot Format `3.0.0`이며 Knowledge Snapshot/Evidence Policy version, 정규화된 Knowledge, Field Evidence, Rule별 `knowledgeRelationIds`와 집계 결과를 포함합니다. provider-private extension과 business field는 공개 DTO에서 거부합니다.
+
+잘못된 Canonical, Installation Context, Knowledge provenance 또는 Evidence envelope는 Rule을 실행하기 전에 거부합니다. 지원하지 않는 과거 Schema를 조용히 현재 의미로 읽지 않습니다.
 
 ## 인증 경계
 

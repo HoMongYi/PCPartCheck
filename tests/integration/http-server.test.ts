@@ -35,13 +35,15 @@ async function createServer(
     .buildHttpServer;
   expect(candidate, 'buildHttpServer must be exported').toBeTypeOf('function');
   const resultSnapshot = {
-      snapshotFormatVersion: '2.0.0',
+      snapshotFormatVersion: '3.0.0',
       checkedAt: '2026-09-08T00:00:00.000Z',
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
       policyVersion: '1.0.0',
-      canonicalSchemaVersion: '3.0.0',
-      installationContextSchemaVersion: '2.0.0',
+      canonicalSchemaVersion: '3.1.0',
+      installationContextSchemaVersion: '2.1.0',
+      knowledgeSnapshotSchemaVersion: '1.0.0',
+      evidencePolicyVersion: '1.0.0',
       identityMapperVersion: '1.1.0',
       providerVersions: [],
       inputSnapshot: {
@@ -49,8 +51,9 @@ async function createServer(
         intent: validCheckRequest.intent,
         installationContext: validCheckRequest.installationContext,
         policyProfile: validCheckRequest.policyProfile,
+        knowledgeSnapshots: [],
       },
-      evidenceSnapshot: {},
+      evidenceSnapshot: validCheckRequest.evidenceSnapshot,
       resultSnapshot: {
         status: 'PASS',
         decision: 'ALLOW',
@@ -68,7 +71,7 @@ async function createServer(
       },
     } as const;
   const fieldEvidence: FieldEvidenceRecord = {
-    schemaVersion: '3.0.0',
+    schemaVersion: '4.0.0',
     evidenceId: 'field-1',
     status: 'DRAFT',
     visibility: 'PUBLIC',
@@ -76,9 +79,36 @@ async function createServer(
     outcome: 'ASSEMBLY_FAILURE',
     issueType: 'PHYSICAL_CLEARANCE',
     parts: [
-      { category: 'GPU', partId: '11111111-1111-4111-8111-111111111111' },
+      {
+        category: 'GPU',
+        partId: '11111111-1111-4111-8111-111111111111',
+        hardwareRevision: 'A1',
+      },
     ],
-    installationContext: validCheckRequest.installationContext as unknown as FieldEvidenceRecord['installationContext'],
+    exactScope: {
+      requiredPartCategories: ['GPU'],
+      requiredContextFields: [
+        'radiators',
+        'hddCages',
+        'gpuOrientation',
+        'installedBiosVersion',
+        'componentRevisions',
+      ],
+    },
+    installationContext: {
+      ...validCheckRequest.installationContext,
+      radiators: [...validCheckRequest.installationContext.radiators],
+      hddCages: [...validCheckRequest.installationContext.hddCages],
+      occupiedPcieSlotIds: [
+        ...validCheckRequest.installationContext.occupiedPcieSlotIds,
+      ],
+      pciePower: { ...validCheckRequest.installationContext.pciePower },
+      componentRevisions: [{
+        partId: '11111111-1111-4111-8111-111111111111',
+        hardwareRevision: 'A1',
+      }],
+      installedBiosVersion: 'F12',
+    },
     attachments: [
       {
         attachmentId: 'demo-photo-1',
@@ -93,7 +123,9 @@ async function createServer(
     createdAt: '2026-09-08T00:00:00.000Z',
     updatedAt: '2026-09-08T00:00:00.000Z',
   };
-  const fieldEvidenceStore = new Map([[fieldEvidence.evidenceId, fieldEvidence]]);
+  const fieldEvidenceStore = new Map<string, FieldEvidenceRecord>([
+    [fieldEvidence.evidenceId, fieldEvidence],
+  ]);
   const services = {
     checkCompatibility: vi.fn(async () => resultSnapshot),
     checkCompatibilityBatch: vi.fn(async () => ({ results: [resultSnapshot] })),
@@ -233,10 +265,10 @@ async function createServer(
 }
 
 const validCheckRequest = {
-  build: { schemaVersion: '3.0.0', parts: [] },
+  build: { schemaVersion: '3.1.0', parts: [] },
   intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
   installationContext: {
-    schemaVersion: '2.0.0',
+    schemaVersion: '2.1.0',
     radiators: [],
     hddCages: [],
     gpuOrientation: 'HORIZONTAL',
@@ -253,7 +285,11 @@ const validCheckRequest = {
     policyVersion: '1.0.0',
     capabilities: [],
   },
-  evidenceSnapshot: {},
+  evidenceSnapshot: {
+    fieldEvidenceSchemaVersion: '4.0.0',
+    evidencePolicyVersion: '1.0.0',
+    records: [],
+  },
 } as const;
 
 describe('Fastify reference API', () => {
@@ -265,7 +301,7 @@ describe('Fastify reference API', () => {
     expect(response.json()).toEqual({
       status: 'ok',
       service: 'pcpartcheck',
-      canonicalSchemaVersion: '3.0.0',
+      canonicalSchemaVersion: '3.1.0',
     });
   });
 
@@ -279,7 +315,7 @@ describe('Fastify reference API', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      canonicalSchemaVersion: '3.0.0',
+      canonicalSchemaVersion: '3.1.0',
       resultSnapshot: { decision: 'ALLOW' },
     });
     expect(services.checkCompatibility).toHaveBeenCalledOnce();
@@ -477,9 +513,30 @@ describe('Fastify reference API', () => {
       outcome: 'ASSEMBLY_FAILURE',
       issueType: 'PHYSICAL_CLEARANCE',
       parts: [
-        { category: 'GPU', partId: '11111111-1111-4111-8111-111111111111' },
+        {
+          category: 'GPU',
+          partId: '11111111-1111-4111-8111-111111111111',
+          hardwareRevision: 'A1',
+        },
       ],
-      installationContext: validCheckRequest.installationContext,
+      exactScope: {
+        requiredPartCategories: ['GPU'],
+        requiredContextFields: [
+          'radiators',
+          'hddCages',
+          'gpuOrientation',
+          'installedBiosVersion',
+          'componentRevisions',
+        ],
+      },
+      installationContext: {
+        ...validCheckRequest.installationContext,
+        componentRevisions: [{
+          partId: '11111111-1111-4111-8111-111111111111',
+          hardwareRevision: 'A1',
+        }],
+        installedBiosVersion: 'F12',
+      },
       reportedAt: '2026-09-08T00:00:00.000Z',
     };
 
@@ -520,7 +577,7 @@ describe('Fastify reference API', () => {
         parts: [
           { category: 'CPU', partId: '22222222-2222-4222-8222-222222222222' },
         ],
-        installationContext: { schemaVersion: '2.0.0' },
+        installationContext: { schemaVersion: '2.1.0' },
       },
     });
     const repeatApproval = await server.inject({
@@ -703,6 +760,7 @@ describe('Fastify reference API', () => {
     expect(openapi.statusCode).toBe(200);
     expect(openapi.json()).toMatchObject({
       openapi: expect.stringMatching(/^3\./u),
+      info: { title: 'PCPartCheck Reference API', version: '0.2.0' },
       paths: {
         '/health': expect.any(Object),
         '/v1/compatibility/check': expect.any(Object),

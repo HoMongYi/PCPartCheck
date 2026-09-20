@@ -12,13 +12,17 @@ BuildCores `RAM.speed`는 후자입니다. 원본 Schema에는 MHz라고 쓰여 
 
 Field Evidence는 실제 설치에서 확인한 성공, 실패, 조건부 성공 기록입니다. 부품 ID와 versioned Installation Context가 모두 같은 `EXACT` 기록만 판정에 영향을 줄 수 있습니다. `SIMILAR` 기록은 조회용 참고 자료입니다. 상세 상태 전이와 visibility는 [Field Evidence 문서](FIELD-EVIDENCE.md)에 있습니다.
 
+## Knowledge provenance
+
+Knowledge relation은 `relationId`에서 `sourceIds`로, source에서 immutable URI·capture time·content hash로 추적됩니다. Result의 `knowledgeRelationIds`와 정규화된 Knowledge Snapshot을 함께 보존하므로 판정에 사용한 relation과 source를 replay할 수 있습니다. 자세한 supersession과 active-leaf 규칙은 [Knowledge Snapshot 문서](KNOWLEDGE-SNAPSHOT.md)에 있습니다.
+
 ## Attachment
 
 Evidence에는 attachment bytes 대신 `attachmentId`, media type, `sha256:<hex>`, 크기, opaque storage key를 담은 reference만 둡니다. `AttachmentStorageProvider`가 bytes 저장을 맡습니다. Memory reference 구현은 put과 get에서 SHA-256과 크기를 확인하고, 반환 bytes를 복사해 저장본이 호출자 변경의 영향을 받지 않게 합니다.
 
 ## Snapshot
 
-검사 시점에 적용한 Evidence는 Result Snapshot의 `evidenceSnapshot`에 복사됩니다. 원본 저장소가 나중에 바뀌어도 Replay 입력은 기록된 Snapshot을 사용합니다. Evidence의 출처나 visibility를 생략한 채 결과만 저장하면 같은 판정을 재현할 수 없으므로 지원하지 않습니다.
+검사 시점에 적용한 Knowledge와 Evidence는 Result Snapshot에 복사됩니다. 원본 저장소가 나중에 바뀌어도 Replay 입력은 기록된 Snapshot을 사용합니다. 출처나 visibility를 생략한 채 결과만 저장하면 같은 판정을 재현할 수 없으므로 지원하지 않습니다.
 
 ## 신뢰 경계
 

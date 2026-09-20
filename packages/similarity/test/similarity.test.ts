@@ -30,7 +30,7 @@ const query: FieldEvidenceQuery & {
     { category: 'PC_CASE', partId: '22222222-2222-4222-8222-222222222222' },
   ],
   installationContext: {
-    schemaVersion: '2.0.0',
+    schemaVersion: '2.1.0',
     radiators: [
       {
         position: 'FRONT',
@@ -48,6 +48,17 @@ const query: FieldEvidenceQuery & {
       native12V2x6CableCount: 0,
       adapterUsed: false,
     },
+    componentRevisions: [
+      {
+        partId: '11111111-1111-4111-8111-111111111111',
+        hardwareRevision: 'A1',
+      },
+      {
+        partId: '22222222-2222-4222-8222-222222222222',
+        hardwareRevision: 'B2',
+      },
+    ],
+    installedBiosVersion: 'F12',
   },
   measurements: [
     { fieldPath: 'gpu.lengthMm', value: 330, unit: 'mm' },
@@ -66,7 +77,7 @@ function fieldRecord(
   } = {},
 ): FieldEvidenceRecord {
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '4.0.0',
     evidenceId,
     status: options.status ?? 'APPROVED',
     visibility: 'PUBLIC',
@@ -74,9 +85,27 @@ function fieldRecord(
     outcome: 'ASSEMBLY_FAILURE',
     issueType: 'PHYSICAL_CLEARANCE',
     parts: [
-      { category: 'GPU', partId: '33333333-3333-4333-8333-333333333333' },
-      { category: 'PC_CASE', partId: '22222222-2222-4222-8222-222222222222' },
+      {
+        category: 'GPU',
+        partId: '33333333-3333-4333-8333-333333333333',
+        hardwareRevision: 'A1',
+      },
+      {
+        category: 'PC_CASE',
+        partId: '22222222-2222-4222-8222-222222222222',
+        hardwareRevision: 'B2',
+      },
     ],
+    exactScope: {
+      requiredPartCategories: ['GPU', 'PC_CASE'],
+      requiredContextFields: [
+        'radiators',
+        'hddCages',
+        'gpuOrientation',
+        'installedBiosVersion',
+        'componentRevisions',
+      ],
+    },
     installationContext: {
       ...query.installationContext,
       radiators: [
@@ -85,6 +114,16 @@ function fieldRecord(
           sizeMm: options.radiatorSizeMm ?? 360,
           radiatorThicknessMm: 30,
           fanThicknessMm: 25,
+        },
+      ],
+      componentRevisions: [
+        {
+          partId: '33333333-3333-4333-8333-333333333333',
+          hardwareRevision: 'A1',
+        },
+        {
+          partId: '22222222-2222-4222-8222-222222222222',
+          hardwareRevision: 'B2',
         },
       ],
     },
@@ -160,10 +199,15 @@ describe('rankSimilarFieldEvidence', () => {
       records: [fieldRecord('explained', { gpuLengthMm: 340 })],
     });
 
-    expect(result?.matchedFields).toEqual(expect.arrayContaining(['parts.PC_CASE']));
+    expect(result?.matchedFields).toEqual(expect.arrayContaining([
+      'parts.PC_CASE',
+      'installationContext.componentRevisions.PC_CASE',
+      'installationContext.installedBiosVersion',
+    ]));
     expect(result?.differences).toEqual(
       expect.arrayContaining(['measurements.gpu.lengthMm']),
     );
+    expect(result?.similarityScore).toBeLessThanOrEqual(1);
     expect(result?.reason).toEqual(expect.any(String));
   });
 

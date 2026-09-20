@@ -33,20 +33,20 @@ test('verifies the running API, OpenAPI document, and API-backed Demo page', asy
     response.statusCode = 200;
     if (request.url === '/health') {
       response.setHeader('content-type', 'application/json');
-      response.end(JSON.stringify({ canonicalSchemaVersion: '3.0.0' }));
+      response.end(JSON.stringify({ canonicalSchemaVersion: '3.1.0' }));
       return;
     }
     if (request.url === '/openapi.json') {
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({
         openapi: '3.1.0',
-        info: { title: 'PCPartCheck', version: '0.1.0' },
+        info: { title: 'PCPartCheck', version: '0.2.0' },
         paths: {},
       }));
       return;
     }
     response.setHeader('content-type', 'text/html; charset=utf-8');
-    response.end('<h1>PCPartCheck</h1><span>CANONICAL 3.0.0</span><article>socket-mismatch</article>');
+    response.end('<h1>PCPartCheck</h1><span>CANONICAL 3.1.0</span><article>socket-mismatch</article>');
   });
 
   await new Promise<void>((resolveListen, reject) => {
@@ -65,7 +65,7 @@ test('verifies the running API, OpenAPI document, and API-backed Demo page', asy
       openapiUrl: `${baseUrl}/openapi.json`,
       webUrl: baseUrl,
     })).resolves.toEqual({
-      health: { canonicalSchemaVersion: '3.0.0', status: 200 },
+      health: { canonicalSchemaVersion: '3.1.0', status: 200 },
       openapi: { status: 200, version: '3.1.0' },
       web: { apiDataMarker: 'socket-mismatch', status: 200 },
     });

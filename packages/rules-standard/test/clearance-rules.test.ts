@@ -34,7 +34,7 @@ function clearanceCase(
   }> = {},
 ): CanonicalPart {
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '3.1.0',
     partId: '44444444-4444-4444-8444-444444444444',
     category: 'PC_CASE',
     manufacturer: 'Example',
@@ -55,7 +55,7 @@ function withRadiator(
 
 describe('gpuClearanceRule', () => {
   test('returns unknown when installed radiator facts are not known', async () => {
-    const unknownContext: InstallationContext = { schemaVersion: '2.0.0' };
+    const unknownContext: InstallationContext = { schemaVersion: '2.1.0' };
     const result = await exportedRule('gpuClearanceRule').evaluate(
       context(
         [gpu(300), clearanceCase({ maxGpuLengthMm: 320 })],

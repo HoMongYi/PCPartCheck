@@ -1,6 +1,7 @@
 import {
   CANONICAL_SCHEMA_VERSION,
   INSTALLATION_CONTEXT_SCHEMA_VERSION,
+  KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
   createCompatibilityEngine,
   type EngineRule,
 } from '@pcpartcheck/core';
@@ -9,11 +10,15 @@ import {
   DEMO_SCENARIOS,
   DEMO_SIMILARITY_QUERY,
 } from '@pcpartcheck/demo-data';
+import { exactFieldEvidenceRule } from '@pcpartcheck/evidence';
 import { powerRules } from '@pcpartcheck/power';
 import {
   advisoryRules,
   clearanceRules,
+  cpuSupportRule,
+  minimumBiosRule,
   platformRules,
+  psuFormFactorRule,
   storageRules,
 } from '@pcpartcheck/rules-standard';
 import { rankSimilarFieldEvidence } from '@pcpartcheck/similarity';
@@ -25,6 +30,10 @@ const allRules: readonly EngineRule[] = [
   ...storageRules,
   ...powerRules,
   ...advisoryRules,
+  cpuSupportRule,
+  minimumBiosRule,
+  psuFormFactorRule,
+  exactFieldEvidenceRule,
 ];
 const rulesById = new Map(allRules.map((rule) => [rule.ruleId, rule]));
 
@@ -42,6 +51,8 @@ describe('synthetic demo scenarios', () => {
         ruleSetVersion: '0.1.0',
         canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
         installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
+        knowledgeSnapshotSchemaVersion: KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
+        evidencePolicyVersion: '1.0.0',
         identityMapperVersion: '1.0.0',
         providerVersions: [{ providerId: 'synthetic-demo', providerVersion: '1.0.0' }],
       },

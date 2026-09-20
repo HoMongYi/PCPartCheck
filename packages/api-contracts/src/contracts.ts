@@ -3,10 +3,14 @@ import {
   CanonicalBuildSchema,
   CanonicalPartSchema,
   CapabilityModeSchema,
+  ComponentRevisionSchema,
   GpuOrientationSchema,
+  INSTALLATION_CONTEXT_SCHEMA_VERSION,
   InstalledHddCageSchema,
   InstalledRadiatorSchema,
+  KnowledgeSnapshotSchema,
   PciePowerInstallationSchema,
+  SNAPSHOT_FORMAT_VERSION,
   type CanonicalPart,
   type CompatibilityCheckInput,
   type PolicyProfile,
@@ -15,6 +19,8 @@ import {
 import {
   AttachmentReferenceSchema,
   FieldEvidenceDraftInputSchema,
+  FIELD_EVIDENCE_POLICY_VERSION,
+  FIELD_EVIDENCE_SCHEMA_VERSION,
   FieldEvidenceConditionSchema,
   FieldEvidenceIssueTypeSchema,
   FieldEvidencePartReferenceSchema,
@@ -62,7 +68,7 @@ const RecursiveJsonValueBoundarySchema = Type.Any({
 
 export const ApiInstallationContextSchema = Type.Object(
   {
-    schemaVersion: Type.Literal('2.0.0'),
+    schemaVersion: Type.Literal(INSTALLATION_CONTEXT_SCHEMA_VERSION),
     radiators: Type.Optional(Type.Array(InstalledRadiatorSchema)),
     hddCages: Type.Optional(Type.Array(InstalledHddCageSchema)),
     gpuOrientation: Type.Optional(GpuOrientationSchema),
@@ -70,6 +76,7 @@ export const ApiInstallationContextSchema = Type.Object(
       Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
     ),
     pciePower: Type.Optional(PciePowerInstallationSchema),
+    componentRevisions: Type.Optional(Type.Array(ComponentRevisionSchema)),
     installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
     customFacts: Type.Optional(
       Type.Record(Type.String(), RecursiveJsonValueBoundarySchema),
@@ -98,13 +105,23 @@ export const ApiPolicyProfileSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const ApiFieldEvidenceSnapshotSchema = Type.Object(
+  {
+    fieldEvidenceSchemaVersion: Type.Literal(FIELD_EVIDENCE_SCHEMA_VERSION),
+    evidencePolicyVersion: Type.Literal(FIELD_EVIDENCE_POLICY_VERSION),
+    records: Type.Array(FieldEvidenceRecordTransportSchema),
+  },
+  { additionalProperties: false },
+);
+
 export const CompatibilityCheckRequestSchema = Type.Object(
   {
     build: CanonicalBuildSchema,
     intent: BuildIntentSchema,
     installationContext: ApiInstallationContextSchema,
     policyProfile: ApiPolicyProfileSchema,
-    evidenceSnapshot: RecursiveJsonValueBoundarySchema,
+    knowledgeSnapshots: Type.Optional(Type.Array(KnowledgeSnapshotSchema)),
+    evidenceSnapshot: ApiFieldEvidenceSnapshotSchema,
   },
   { additionalProperties: false },
 );
@@ -175,6 +192,7 @@ export const RuleResultSchema = Type.Object(
     reasons: Type.Array(Type.String()),
     conditions: Type.Optional(Type.Array(FieldEvidenceConditionSchema)),
     evidenceIds: Type.Array(Type.String({ minLength: 1 })),
+    knowledgeRelationIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
   },
   { additionalProperties: false },
 );
@@ -206,23 +224,26 @@ export const CompatibilityInputSnapshotSchema = Type.Object(
     intent: BuildIntentSchema,
     installationContext: ApiInstallationContextSchema,
     policyProfile: ApiPolicyProfileSchema,
+    knowledgeSnapshots: Type.Array(KnowledgeSnapshotSchema),
   },
   { additionalProperties: false },
 );
 
 export const ResultSnapshotResponseSchema = Type.Object(
   {
-    snapshotFormatVersion: Type.String({ minLength: 1 }),
+    snapshotFormatVersion: Type.Literal(SNAPSHOT_FORMAT_VERSION),
     checkedAt: Type.String({ minLength: 1 }),
     engineVersion: Type.String({ minLength: 1 }),
     ruleSetVersion: Type.String({ minLength: 1 }),
     policyVersion: Type.String({ minLength: 1 }),
     canonicalSchemaVersion: Type.String({ minLength: 1 }),
     installationContextSchemaVersion: Type.String({ minLength: 1 }),
+    knowledgeSnapshotSchemaVersion: Type.String({ minLength: 1 }),
+    evidencePolicyVersion: Type.String({ minLength: 1 }),
     identityMapperVersion: Type.String({ minLength: 1 }),
     providerVersions: Type.Array(ProviderVersionSchema),
     inputSnapshot: CompatibilityInputSnapshotSchema,
-    evidenceSnapshot: RecursiveJsonValueBoundarySchema,
+    evidenceSnapshot: ApiFieldEvidenceSnapshotSchema,
     resultSnapshot: AggregatedCompatibilityResultSchema,
   },
   { additionalProperties: false },

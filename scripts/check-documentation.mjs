@@ -24,6 +24,7 @@ const requiredFiles = [
   'docs/ROADMAP.md',
   'docs/HANDOFF.md',
   'docs/VERSIONING.md',
+  'docs/KNOWLEDGE-SNAPSHOT.md',
   'docs/openapi.json',
   'docs/diagrams/package-dependencies.mmd',
   'docs/diagrams/runtime-data-flow.mmd',
@@ -89,6 +90,38 @@ async function validateMarkdownLinks(root, errors) {
       } else if (!(await exists(targetPath))) {
         errors.push(`Broken internal Markdown link: ${relative(root, file)} -> ${target}`);
       }
+    }
+  }
+}
+
+async function validateDocumentationBoundaries(root, errors) {
+  const forbiddenBusinessFields = [
+    'Product' + 'No',
+    'sale' + 'Price',
+    'sale' + 'Status',
+    'customer' + 'Id',
+    'order' + 'Id',
+  ];
+  const forbiddenSourceName = 'compu' + 'zone';
+
+  for (const file of await collectMarkdownFiles(root)) {
+    const source = await readFile(file, 'utf8');
+    const relativeFile = relative(root, file);
+    for (const line of source.split(/\r?\n/u)) {
+      const commandUrl = line.match(/\b(?:curl|wget)\b[^\n]*?https?:\/\/([^\s`/]+)/iu);
+      const commandHost = commandUrl?.[1].toLowerCase().replace(/:\d+$/u, '');
+      if (
+        commandUrl &&
+        !['localhost', '127.0.0.1', 'example.invalid'].includes(commandHost)
+      ) {
+        errors.push(`Live source instruction is forbidden: ${relativeFile}`);
+      }
+    }
+    if (
+      forbiddenBusinessFields.some((field) => source.toLowerCase().includes(field.toLowerCase())) ||
+      source.toLowerCase().includes(forbiddenSourceName)
+    ) {
+      errors.push(`Source-specific business field is forbidden: ${relativeFile}`);
     }
   }
 }
@@ -222,6 +255,7 @@ async function main() {
   }
 
   await validateMarkdownLinks(root, errors);
+  await validateDocumentationBoundaries(root, errors);
   await validatePackageDiagram(root, errors);
   await validateOpenApiDocumentation(root, errors);
 

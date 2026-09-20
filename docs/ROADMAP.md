@@ -1,8 +1,14 @@
 # Roadmap
 
-## 0.1 공개 기준선
+## 0.2 release candidate
 
-현재 목표는 Canonical/Installation/Evidence/Snapshot 계약, 표준 RuleSet, 결정론적 Identity와 Similarity, BuildCores snapshot adapter, SQLite package, Reference API와 synthetic Demo를 문서와 함께 공개할 수 있는 상태로 고정하는 것입니다. npm publish와 실제 GitHub Release는 별도 승인을 기다립니다.
+현재 목표는 Knowledge Snapshot, CPU/BIOS/PSU Rule, Field Evidence 4.0, Result Snapshot 3.0과 synthetic vertical slice를 release candidate로 고정하는 것입니다. npm publish, tag와 실제 release는 별도 승인을 기다립니다.
+
+후속 consumer 통합 순서는 다음과 같습니다.
+
+1. PCPartCheck v0.2.0 tag와 exact release SHA 확정
+2. 별도 승인된 HMY-PCPartCheck engine pin 갱신
+3. compatibility adapter 통합
 
 ## 다음에 검토할 일
 

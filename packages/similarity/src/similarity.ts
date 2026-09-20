@@ -145,6 +145,7 @@ function scoreParts(
   if (query.parts.length === 0) return exactFeature('parts', false);
   const matchedFields: string[] = [];
   const differences: string[] = [];
+  let matchedPartCount = 0;
   for (const queryPart of query.parts) {
     const match = record.parts.some(
       (recordPart) =>
@@ -152,9 +153,34 @@ function scoreParts(
         recordPart.partId === queryPart.partId,
     );
     (match ? matchedFields : differences).push(`parts.${queryPart.category}`);
+    if (match) matchedPartCount += 1;
+
+    if (record.schemaVersion === '4.0.0' && match) {
+      const recordPart = record.parts.find(
+        (candidate) => candidate.partId === queryPart.partId,
+      );
+      const queryRevision = query.installationContext.componentRevisions?.find(
+        (revision) => revision.partId === queryPart.partId,
+      )?.hardwareRevision;
+      const revisionField = `installationContext.componentRevisions.${queryPart.category}`;
+      const revisionMatches = recordPart?.hardwareRevision !== undefined &&
+        queryRevision !== undefined &&
+        recordPart.hardwareRevision === queryRevision;
+      (revisionMatches ? matchedFields : differences).push(revisionField);
+    }
+  }
+
+  if (record.schemaVersion === '4.0.0') {
+    const biosMatches = record.installationContext.installedBiosVersion !== undefined &&
+      query.installationContext.installedBiosVersion !== undefined &&
+      record.installationContext.installedBiosVersion ===
+        query.installationContext.installedBiosVersion;
+    (biosMatches ? matchedFields : differences).push(
+      'installationContext.installedBiosVersion',
+    );
   }
   return {
-    score: matchedFields.length / query.parts.length,
+    score: matchedPartCount / query.parts.length,
     matchedFields,
     differences,
   };

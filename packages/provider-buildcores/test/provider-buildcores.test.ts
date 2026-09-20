@@ -207,7 +207,7 @@ describe('BuildCores snapshot import', () => {
 
     expect(result).toMatchObject({
       status: 'IMPORTED',
-      canonicalPart: { schemaVersion: '3.0.0', category: canonicalCategory },
+      canonicalPart: { schemaVersion: '3.1.0', category: canonicalCategory },
     });
   });
 
@@ -292,7 +292,7 @@ describe('BuildCores snapshot import', () => {
     expect(memory).toMatchObject({
       status: 'IMPORTED',
       canonicalPart: {
-        schemaVersion: '3.0.0',
+        schemaVersion: '3.1.0',
         category: 'MEMORY',
         mpn: 'EX-6400-48',
         spec: {

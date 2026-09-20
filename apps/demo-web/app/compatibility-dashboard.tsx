@@ -84,7 +84,7 @@ export function CompatibilityDashboard({
         <div className="brand-lockup">
           <span className="brand-index">PCC / 01</span>
           <span className="brand-rule" aria-hidden="true" />
-          <span className="schema-chip">CANONICAL 3.0.0</span>
+          <span className="schema-chip">CANONICAL 3.1.0</span>
         </div>
         <a className="api-link" href={apiDocsUrl}>
           API 문서 <span aria-hidden="true">↗</span>
@@ -284,7 +284,7 @@ export function CompatibilityDashboard({
 
       <footer>
         <span>PCPartCheck / REFERENCE BUILD</span>
-        <span>ENGINE 0.1.0 · RULESET 0.1.0</span>
+        <span>ENGINE 0.2.0 · RULESET 0.2.0</span>
       </footer>
     </main>
   );

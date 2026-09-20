@@ -29,7 +29,7 @@ function part(
 ): CanonicalPart {
   const digit = String(idDigit);
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '3.1.0',
     partId: `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`,
     category,
     manufacturer: 'Example',
@@ -62,11 +62,11 @@ function baseParts(vendorRecommendedPsuW = 650): CanonicalPart[] {
 }
 
 function build(parts: readonly CanonicalPart[]): CanonicalBuild {
-  return { schemaVersion: '3.0.0', parts: [...parts] };
+  return { schemaVersion: '3.1.0', parts: [...parts] };
 }
 
 const installationContext: InstallationContext = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '2.1.0',
   radiators: [],
   hddCages: [],
   gpuOrientation: 'HORIZONTAL',
@@ -85,6 +85,8 @@ function context(parts: readonly CanonicalPart[]): CompatibilityRuleContext {
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext,
     policy: { capabilityId: 'power', mode: 'REQUIRED' },
+    knowledgeSnapshots: [],
+    evidenceSnapshot: {},
   };
 }
 

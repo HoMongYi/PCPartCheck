@@ -27,10 +27,10 @@ test('installed radiator size is any positive integer', () => {
 test('installation context distinguishes unknown facts from confirmed zero values', () => {
   const schema = exportedSchema('InstallationContextSchema');
 
-  expect(Value.Check(schema, { schemaVersion: '2.0.0' })).toBe(true);
+  expect(Value.Check(schema, { schemaVersion: '2.1.0' })).toBe(true);
   expect(
     Value.Check(schema, {
-      schemaVersion: '2.0.0',
+      schemaVersion: '2.1.0',
       radiators: [],
       pciePower: {
         independentCableCount: 0,
@@ -47,7 +47,7 @@ test('installation context validates exact field evidence inputs', () => {
 
   expect(
     Value.Check(schema, {
-      schemaVersion: '2.0.0',
+      schemaVersion: '2.1.0',
       radiators: [
         {
           position: 'FRONT',
@@ -73,7 +73,7 @@ test('installation context validates exact field evidence inputs', () => {
   ).toBe(true);
   expect(
     Value.Check(schema, {
-      schemaVersion: '2.0.0',
+      schemaVersion: '2.1.0',
       radiators: [],
       hddCages: [],
       gpuOrientation: 'DIAGONAL',
@@ -84,6 +84,29 @@ test('installation context validates exact field evidence inputs', () => {
         native12V2x6CableCount: 0,
         adapterUsed: false,
       },
+    }),
+  ).toBe(false);
+});
+
+test('installation context validates component hardware revisions', () => {
+  const schema = exportedSchema('InstallationContextSchema');
+  const context = {
+    schemaVersion: '2.1.0',
+    componentRevisions: [
+      {
+        partId: '22222222-2222-4222-8222-222222222222',
+        hardwareRevision: '1.0',
+      },
+    ],
+  };
+
+  expect(Value.Check(schema, context)).toBe(true);
+  expect(
+    Value.Check(schema, {
+      ...context,
+      componentRevisions: [
+        { ...context.componentRevisions[0], hardwareRevision: '' },
+      ],
     }),
   ).toBe(false);
 });

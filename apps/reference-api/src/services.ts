@@ -10,9 +10,13 @@ import {
   CANONICAL_SCHEMA_VERSION,
   ENGINE_VERSION,
   INSTALLATION_CONTEXT_SCHEMA_VERSION,
+  KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
   createCompatibilityEngine,
+  validateAndCanonicalizeKnowledgeSnapshots,
   type CanonicalPart,
+  type CompatibilityCheckInput,
   type EngineRule,
+  type JsonValue,
   type PolicyProfile,
 } from '@pcpartcheck/core';
 import {
@@ -22,17 +26,22 @@ import {
   DEMO_SIMILARITY_QUERY,
 } from '@pcpartcheck/demo-data';
 import {
-  applyExactFieldEvidence,
   createDraftFieldEvidence,
+  exactFieldEvidenceRule,
   moderateFieldEvidence,
   patchDraftFieldEvidence,
+  validateAndCanonicalizeFieldEvidenceSnapshot,
+  type FieldEvidenceSnapshot,
 } from '@pcpartcheck/evidence';
 import type { FieldEvidenceVisibility } from '@pcpartcheck/evidence';
 import { calculatePowerBudget, powerRules } from '@pcpartcheck/power';
 import {
   advisoryRules,
   clearanceRules,
+  cpuSupportRule,
+  minimumBiosRule,
   platformRules,
+  psuFormFactorRule,
   storageRules,
   STANDARD_RULE_SET_VERSION,
 } from '@pcpartcheck/rules-standard';
@@ -44,19 +53,26 @@ const allRules: readonly EngineRule[] = [
   ...storageRules,
   ...powerRules,
   ...advisoryRules,
+  cpuSupportRule,
+  minimumBiosRule,
+  psuFormFactorRule,
+  exactFieldEvidenceRule,
 ];
 const rulesById = new Map(allRules.map((rule) => [rule.ruleId, rule]));
 
-export const REFERENCE_POLICY_VERSION = '1.0.0' as const;
+export const REFERENCE_POLICY_VERSION = '2.0.0' as const;
 
 const versions = {
   engineVersion: ENGINE_VERSION,
   ruleSetVersion: STANDARD_RULE_SET_VERSION,
   canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
   installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
+  knowledgeSnapshotSchemaVersion: KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
+  evidencePolicyVersion: '1.0.0',
   identityMapperVersion: '1.1.0',
   providerVersions: [
-    { providerId: 'synthetic-demo', providerVersion: '1.0.0' },
+    { providerId: 'synthetic-demo', providerVersion: '2.0.0' },
+    { providerId: 'synthetic-manufacturer', providerVersion: '2.0.0' },
   ],
 } as const;
 
@@ -80,6 +96,10 @@ const requiredCapabilities = new Set([
   'pcie-slot',
   'power-budget',
   'psu-connector',
+  'cpu-support',
+  'bios',
+  'psu-form-factor',
+  'exact-field-evidence',
 ]);
 
 const advisoryCapabilities = new Set([
@@ -95,20 +115,6 @@ const futureCapabilities: readonly CapabilityResponseItem[] = [
     capabilityId: 'manufacturer-specification',
     title: 'Manufacturer Specification',
     description: '제조사 기술 사양 Provider가 연결되면 사용할 수 있습니다.',
-    providerAvailable: false,
-    defaultMode: 'DISABLED',
-  },
-  {
-    capabilityId: 'cpu-support',
-    title: 'CPU Support',
-    description: '제조사 CPU 지원 목록 Provider가 연결되면 사용할 수 있습니다.',
-    providerAvailable: false,
-    defaultMode: 'DISABLED',
-  },
-  {
-    capabilityId: 'bios',
-    title: 'BIOS',
-    description: 'BIOS 릴리스 Provider가 연결되면 사용할 수 있습니다.',
     providerAvailable: false,
     defaultMode: 'DISABLED',
   },
@@ -195,11 +201,14 @@ async function getDemoDashboard(): Promise<DemoDashboardResponse> {
         advisoryRuleIds: [...resultSnapshot.issues.advisoryRuleIds],
         coverage: resultSnapshot.coverage,
         ruleResults: resultSnapshot.ruleResults.map((result) => {
-          const { conditions, ...withoutConditions } = result;
+          const { conditions, knowledgeRelationIds, ...withoutOptionalArrays } = result;
           return {
-            ...withoutConditions,
+            ...withoutOptionalArrays,
             reasons: [...result.reasons],
             evidenceIds: [...result.evidenceIds],
+            ...(knowledgeRelationIds
+              ? { knowledgeRelationIds: [...knowledgeRelationIds] }
+              : {}),
             ...(conditions
               ? { conditions: conditions.map((condition) => ({ ...condition })) }
               : {}),
@@ -225,16 +234,15 @@ async function getDemoDashboard(): Promise<DemoDashboardResponse> {
     }),
   );
 
-  const exactResult = applyExactFieldEvidence(
-    {
-      status: 'UNKNOWN',
-      summary: 'Canonical clearance data is incomplete',
-      reasons: ['Field evidence has not been applied'],
-      evidenceIds: [],
-    },
-    DEMO_FIELD_EVIDENCE_RECORDS,
-    DEMO_SIMILARITY_QUERY,
+  const exactScenario = scenarios.find(
+    ({ id }) => id === 'exact-field-evidence-failure',
   );
+  const exactRuleResult = exactScenario?.ruleResults.find(
+    ({ ruleId }) => ruleId === 'exact-field-evidence',
+  );
+  if (exactRuleResult === undefined) {
+    throw new Error('Synthetic exact Field Evidence scenario is missing');
+  }
 
   return {
     scenarios,
@@ -246,7 +254,7 @@ async function getDemoDashboard(): Promise<DemoDashboardResponse> {
       redaction: DEMO_EXACT_FIELD_EVIDENCE_RECORD.redaction,
       outcome: DEMO_EXACT_FIELD_EVIDENCE_RECORD.outcome,
       match: 'EXACT',
-      resultStatus: exactResult.status,
+      resultStatus: exactRuleResult.status,
     },
     similarEvidence: rankSimilarFieldEvidence({
       query: DEMO_SIMILARITY_QUERY,
@@ -282,10 +290,28 @@ export function createReferenceApiServices(): PcPartCheckApiServices {
     ]),
   );
 
+  function normalizeCompatibilityInput(
+    request: CompatibilityCheckInput,
+  ): CompatibilityCheckInput {
+    const knowledgeSnapshots = validateAndCanonicalizeKnowledgeSnapshots(
+      request.knowledgeSnapshots ?? [],
+    );
+    const evidenceSnapshot = validateAndCanonicalizeFieldEvidenceSnapshot(
+      request.evidenceSnapshot as unknown as FieldEvidenceSnapshot,
+    );
+    return {
+      ...request,
+      knowledgeSnapshots,
+      evidenceSnapshot: evidenceSnapshot as unknown as JsonValue,
+    };
+  }
+
   return {
-    checkCompatibility: (request) => engine.check(request),
+    checkCompatibility: (request) => engine.check(normalizeCompatibilityInput(request)),
     checkCompatibilityBatch: async ({ requests }) => ({
-      results: await Promise.all(requests.map((request) => engine.check(request))),
+      results: await Promise.all(
+        requests.map((request) => engine.check(normalizeCompatibilityInput(request))),
+      ),
     }),
     listParts: async (query) => {
       const matching = [...partCatalog.values()]

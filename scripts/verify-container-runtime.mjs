@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const EXPECTED_CANONICAL_SCHEMA_VERSION = '3.0.0';
+const EXPECTED_CANONICAL_SCHEMA_VERSION = '3.1.0';
 const API_DATA_MARKER = 'socket-mismatch';
 
 function isRecord(value) {
@@ -52,7 +52,7 @@ export async function verifyRuntimeEndpoints({ healthUrl, openapiUrl, webUrl }) 
   }
 
   const webResponse = await readResponse(webUrl, 'Demo Web');
-  for (const marker of ['PCPartCheck', 'CANONICAL 3.0.0', API_DATA_MARKER]) {
+  for (const marker of ['PCPartCheck', 'CANONICAL 3.1.0', API_DATA_MARKER]) {
     if (!webResponse.body.includes(marker)) {
       throw new Error(`Demo Web did not render required marker: ${marker}`);
     }

@@ -11,14 +11,15 @@ test('shows real engine scenarios and keeps similar failures informational', asy
     readonly scenarios: readonly unknown[];
     readonly similarEvidence: readonly unknown[];
   };
-  expect(dashboard.scenarios).toHaveLength(8);
+  expect(dashboard.scenarios).toHaveLength(12);
   expect(dashboard.similarEvidence).toHaveLength(3);
 
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'PCPartCheck' })).toBeVisible();
-  await expect(page.getByText('CANONICAL 3.0.0')).toBeVisible();
-  await expect(page.getByTestId('scenario-card')).toHaveCount(8);
+  await expect(page.getByText('CANONICAL 3.1.0')).toBeVisible();
+  await expect(page.getByText('ENGINE 0.2.0 · RULESET 0.2.0')).toBeVisible();
+  await expect(page.getByTestId('scenario-card')).toHaveCount(12);
   await expect(page.getByText('Status는 기술 판정')).toBeVisible();
   await expect(page.getByText('Power Budget 기준값')).toBeVisible();
   await expect(page.getByTestId('exact-evidence-card')).toBeVisible();
@@ -37,7 +38,7 @@ test('shows real engine scenarios and keeps similar failures informational', asy
   await expect(page.getByTestId('similar-evidence-card')).toHaveCount(3);
 
   await page.getByRole('button', { name: '차단' }).click();
-  await expect(page.getByTestId('scenario-card')).toHaveCount(3);
+  await expect(page.getByTestId('scenario-card')).toHaveCount(5);
   await expect(page.getByText('CPU와 메인보드 소켓이 다른 구성')).toBeVisible();
   await expect(page.getByText('ARGB 헤더가 맞지 않는 구성')).toHaveCount(0);
 

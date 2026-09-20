@@ -18,6 +18,7 @@ export interface RuleEvaluation {
   readonly reasons: readonly string[];
   readonly conditions?: readonly RuleCondition[];
   readonly evidenceIds: readonly string[];
+  readonly knowledgeRelationIds?: readonly string[];
 }
 
 export interface CompatibilityRule<TContext> {

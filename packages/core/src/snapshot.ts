@@ -3,9 +3,10 @@ import type { PolicyProfile } from './capability.js';
 import type { BuildIntent } from './build-intent.js';
 import type { CanonicalBuild } from './build.js';
 import type { InstallationContext } from './installation-context.js';
+import type { KnowledgeSnapshot } from './knowledge.js';
 import type { AggregatedCompatibilityResult } from './result.js';
 
-export const SNAPSHOT_FORMAT_VERSION = '2.0.0' as const;
+export const SNAPSHOT_FORMAT_VERSION = '3.0.0' as const;
 
 export interface ProviderVersion {
   readonly providerId: string;
@@ -19,6 +20,8 @@ export interface EngineVersions {
   readonly ruleSetVersion: string;
   readonly canonicalSchemaVersion: string;
   readonly installationContextSchemaVersion: string;
+  readonly knowledgeSnapshotSchemaVersion: string;
+  readonly evidencePolicyVersion: string;
   readonly identityMapperVersion: string;
   readonly providerVersions: readonly ProviderVersion[];
 }
@@ -29,12 +32,15 @@ export interface CompatibilityCheckInput {
   readonly installationContext: InstallationContext;
   readonly policyProfile: PolicyProfile;
   readonly evidenceSnapshot: JsonValue;
+  readonly knowledgeSnapshots?: readonly KnowledgeSnapshot[];
 }
 
 export type CompatibilityInputSnapshot = Omit<
   CompatibilityCheckInput,
-  'evidenceSnapshot'
->;
+  'evidenceSnapshot' | 'knowledgeSnapshots'
+> & {
+  readonly knowledgeSnapshots: readonly KnowledgeSnapshot[];
+};
 
 export interface ResultSnapshot extends EngineVersions {
   readonly snapshotFormatVersion: typeof SNAPSHOT_FORMAT_VERSION;

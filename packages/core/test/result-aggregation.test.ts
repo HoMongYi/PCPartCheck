@@ -17,6 +17,7 @@ interface TestRuleResult {
   readonly summary: string;
   readonly reasons: readonly string[];
   readonly evidenceIds: readonly string[];
+  readonly knowledgeRelationIds?: readonly string[];
   readonly conditions?: readonly { readonly code: string; readonly message: string }[];
 }
 
@@ -83,6 +84,19 @@ test('advisory incompatibility warns without blocking', () => {
   });
 });
 
+test('preserves optional knowledge relation provenance', () => {
+  const knowledgeResult: TestRuleResult = {
+    ...result('cpu-support', 'REQUIRED', 'PASS'),
+    knowledgeRelationIds: ['support-a', 'bios-a'],
+  };
+
+  expect(aggregate([knowledgeResult])).toMatchObject({
+    ruleResults: [
+      { knowledgeRelationIds: ['support-a', 'bios-a'] },
+    ],
+  });
+});
+
 test('required unknown requires review and remains unknown in coverage', () => {
   const aggregateResult = aggregate([
     result('socket', 'REQUIRED', 'UNKNOWN'),
@@ -138,4 +152,17 @@ test('disabled capabilities cannot report an evaluated result', () => {
   expect(() => aggregate([result('qvl', 'DISABLED', 'PASS')])).toThrow(
     'Disabled rule qvl must be NOT_CHECKED',
   );
+});
+
+test('a required deterministic failure remains blocking beside exact evidence success', () => {
+  const aggregateResult = aggregate([
+    result('exact-field-evidence', 'REQUIRED', 'PASS'),
+    result('psu-form-factor', 'REQUIRED', 'INCOMPATIBLE'),
+  ]);
+
+  expect(aggregateResult).toMatchObject({
+    status: 'INCOMPATIBLE',
+    decision: 'BLOCK',
+    issues: { blockingRuleIds: ['psu-form-factor'] },
+  });
 });

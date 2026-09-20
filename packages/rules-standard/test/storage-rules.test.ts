@@ -15,7 +15,7 @@ function board(
   pcieSlots?: readonly PcieSlotSpec[],
 ): CanonicalPart {
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '3.1.0',
     partId: '22222222-2222-4222-8222-222222222222',
     category: 'MOTHERBOARD',
     manufacturer: 'Example',
@@ -39,7 +39,7 @@ function storage(
 ): CanonicalPart {
   const digit = String(index).repeat(8);
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '3.1.0',
     partId: `${digit}-${String(index).repeat(4)}-4${String(index).repeat(3)}-8${String(index).repeat(3)}-${String(index).repeat(12)}`,
     category: 'STORAGE',
     manufacturer: 'Example',
@@ -218,7 +218,7 @@ describe('pcieSlotCompatibilityRule', () => {
   test('rejects a GPU only when no physical slot is large enough', async () => {
     const graphics = {
       ...gpu(300),
-      schemaVersion: '3.0.0',
+      schemaVersion: '3.1.0',
       spec: {
         lengthMm: 300,
         pcieGeneration: 5,
@@ -250,7 +250,7 @@ describe('pcieSlotCompatibilityRule', () => {
   test('allows a physical x16 GPU in a physical x16 electrical x8 slot', async () => {
     const graphics = {
       ...gpu(300),
-      schemaVersion: '3.0.0',
+      schemaVersion: '3.1.0',
       spec: {
         lengthMm: 300,
         pcieGeneration: 5,
@@ -282,11 +282,11 @@ describe('pcieSlotCompatibilityRule', () => {
   test('assigns GPU and add-in cards to separate physical slots', async () => {
     const graphics = {
       ...gpu(300),
-      schemaVersion: '3.0.0',
+      schemaVersion: '3.1.0',
       spec: { lengthMm: 300, physicalConnectorLanes: 16 },
     } as CanonicalPart;
     const captureCard = {
-      schemaVersion: '3.0.0',
+      schemaVersion: '3.1.0',
       partId: '99999999-9999-4999-8999-999999999999',
       category: 'PCIE_CARD',
       manufacturer: 'Example',
@@ -366,7 +366,7 @@ describe('pcieSlotCompatibilityRule', () => {
         ],
         'pcie-slot',
         undefined,
-        { schemaVersion: '2.0.0' },
+        { schemaVersion: '2.1.0' },
       ),
     );
 
@@ -377,7 +377,7 @@ describe('pcieSlotCompatibilityRule', () => {
 describe('pcieBandwidthAdvisoryRule', () => {
   const graphics = {
     ...gpu(300),
-    schemaVersion: '3.0.0',
+    schemaVersion: '3.1.0',
     spec: {
       lengthMm: 300,
       pcieGeneration: 5,
@@ -447,7 +447,7 @@ describe('pcieBandwidthAdvisoryRule', () => {
         ],
         'pcie-bandwidth',
         undefined,
-        { schemaVersion: '2.0.0' },
+        { schemaVersion: '2.1.0' },
       ),
     );
 

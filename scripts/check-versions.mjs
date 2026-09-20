@@ -4,24 +4,45 @@ import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 const expected = {
-  package: '0.1.0',
-  engine: '0.1.0',
-  canonicalSchema: '3.0.0',
-  installationContext: '2.0.0',
-  fieldEvidence: '3.0.0',
-  snapshot: '2.0.0',
-  ruleSet: '0.1.0',
+  rootPackage: '0.2.0',
+  engine: '0.2.0',
+  canonicalSchema: '3.1.0',
+  installationContext: '2.1.0',
+  knowledgeSnapshot: '1.0.0',
+  fieldEvidence: '4.0.0',
+  evidencePolicy: '1.0.0',
+  snapshot: '3.0.0',
+  ruleSet: '0.2.0',
   identityMapper: '1.1.0',
   providerAdapter: '3.0.0',
-  referencePolicy: '1.0.0',
+  referencePolicy: '2.0.0',
 };
+
+const expectedPackageVersions = new Map([
+  ['@pcpartcheck/api-contracts', '0.2.0'],
+  ['@pcpartcheck/core', '0.2.0'],
+  ['@pcpartcheck/demo-data', '0.2.0'],
+  ['@pcpartcheck/evidence', '0.2.0'],
+  ['@pcpartcheck/provider-sdk', '0.2.0'],
+  ['@pcpartcheck/rules-standard', '0.2.0'],
+  ['@pcpartcheck/similarity', '0.2.0'],
+  ['@pcpartcheck/http-server', '0.1.1'],
+  ['@pcpartcheck/identity', '0.1.1'],
+  ['@pcpartcheck/llm-toolkit', '0.1.1'],
+  ['@pcpartcheck/power', '0.1.1'],
+  ['@pcpartcheck/provider-buildcores', '0.1.1'],
+  ['@pcpartcheck/storage-sqlite', '0.1.1'],
+  ['@pcpartcheck/unit-normalization', '0.1.1'],
+]);
 
 const sourceContracts = [
   ['packages/core/src/version.ts', 'ENGINE_VERSION', expected.engine],
   ['packages/core/src/canonical/primitives.ts', 'CANONICAL_SCHEMA_VERSION', expected.canonicalSchema],
   ['packages/core/src/installation-context.ts', 'INSTALLATION_CONTEXT_SCHEMA_VERSION', expected.installationContext],
+  ['packages/core/src/knowledge.ts', 'KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION', expected.knowledgeSnapshot],
   ['packages/core/src/snapshot.ts', 'SNAPSHOT_FORMAT_VERSION', expected.snapshot],
   ['packages/evidence/src/field-evidence.ts', 'FIELD_EVIDENCE_SCHEMA_VERSION', expected.fieldEvidence],
+  ['packages/evidence/src/evidence-policy.ts', 'FIELD_EVIDENCE_POLICY_VERSION', expected.evidencePolicy],
   ['packages/identity/src/identity-mapper.ts', 'IDENTITY_MAPPER_VERSION', expected.identityMapper],
   ['packages/rules-standard/src/version.ts', 'STANDARD_RULE_SET_VERSION', expected.ruleSet],
   ['packages/provider-buildcores/src/types.ts', 'BUILDCORES_MAPPER_VERSION', expected.providerAdapter],
@@ -71,10 +92,23 @@ async function main() {
   const sourceOnly = arguments_.includes('--source-only');
   const errors = [];
   const manifests = await readManifests(root);
+  const rootManifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+
+  compare('root package version', rootManifest.version, expected.rootPackage, errors);
 
   for (const { value: manifest } of manifests) {
     if (manifest.private === true) continue;
-    compare(`${manifest.name} package version`, manifest.version, expected.package, errors);
+    const wanted = expectedPackageVersions.get(manifest.name);
+    if (wanted === undefined) {
+      errors.push(`Unexpected public package in version contract: ${manifest.name}`);
+      continue;
+    }
+    compare(`${manifest.name} package version`, manifest.version, wanted, errors);
+  }
+  for (const name of expectedPackageVersions.keys()) {
+    if (!manifests.some(({ value }) => value.name === name)) {
+      errors.push(`Expected public package is missing: ${name}`);
+    }
   }
 
   for (const [relativePath, name, wanted] of sourceContracts) {
@@ -106,8 +140,10 @@ async function main() {
     compare('ENGINE_VERSION public export', core.ENGINE_VERSION, expected.engine, errors);
     compare('CANONICAL_SCHEMA_VERSION public export', core.CANONICAL_SCHEMA_VERSION, expected.canonicalSchema, errors);
     compare('INSTALLATION_CONTEXT_SCHEMA_VERSION public export', core.INSTALLATION_CONTEXT_SCHEMA_VERSION, expected.installationContext, errors);
+    compare('KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION public export', core.KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION, expected.knowledgeSnapshot, errors);
     compare('SNAPSHOT_FORMAT_VERSION public export', core.SNAPSHOT_FORMAT_VERSION, expected.snapshot, errors);
     compare('FIELD_EVIDENCE_SCHEMA_VERSION public export', evidence.FIELD_EVIDENCE_SCHEMA_VERSION, expected.fieldEvidence, errors);
+    compare('FIELD_EVIDENCE_POLICY_VERSION public export', evidence.FIELD_EVIDENCE_POLICY_VERSION, expected.evidencePolicy, errors);
     compare('IDENTITY_MAPPER_VERSION public export', identity.IDENTITY_MAPPER_VERSION, expected.identityMapper, errors);
     compare('STANDARD_RULE_SET_VERSION public export', rules.STANDARD_RULE_SET_VERSION, expected.ruleSet, errors);
     compare('BUILDCORES_MAPPER_VERSION public export', provider.BUILDCORES_MAPPER_VERSION, expected.providerAdapter, errors);
@@ -119,6 +155,8 @@ async function main() {
     compare('snapshot ruleSetVersion', snapshot.ruleSetVersion, expected.ruleSet, errors);
     compare('snapshot canonicalSchemaVersion', snapshot.canonicalSchemaVersion, expected.canonicalSchema, errors);
     compare('snapshot installationContextSchemaVersion', snapshot.installationContextSchemaVersion, expected.installationContext, errors);
+    compare('snapshot knowledgeSnapshotSchemaVersion', snapshot.knowledgeSnapshotSchemaVersion, expected.knowledgeSnapshot, errors);
+    compare('snapshot evidencePolicyVersion', snapshot.evidencePolicyVersion, expected.evidencePolicy, errors);
     compare('snapshot identityMapperVersion', snapshot.identityMapperVersion, expected.identityMapper, errors);
     compare('snapshot snapshotFormatVersion', snapshot.snapshotFormatVersion, expected.snapshot, errors);
     compare('snapshot policyVersion', snapshot.policyVersion, expected.referencePolicy, errors);

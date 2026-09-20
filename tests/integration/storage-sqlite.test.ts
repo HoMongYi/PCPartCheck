@@ -52,7 +52,7 @@ async function openStore(): Promise<{ directory: string; filename: string; store
 }
 
 const cpu: CanonicalPart = {
-  schemaVersion: '3.0.0',
+  schemaVersion: '3.1.0',
   partId: '11111111-1111-4111-8111-111111111111',
   category: 'CPU',
   manufacturer: 'Example',
@@ -74,7 +74,7 @@ const mapping: ExternalMapping = {
 };
 
 const installationContext: InstallationContext = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '2.1.0',
   radiators: [],
   hddCages: [],
   gpuOrientation: 'HORIZONTAL',
@@ -85,6 +85,8 @@ const installationContext: InstallationContext = {
     native12V2x6CableCount: 0,
     adapterUsed: false,
   },
+  componentRevisions: [{ partId: cpu.partId, hardwareRevision: 'A1' }],
+  installedBiosVersion: 'F12',
 };
 
 describe('SQLite migrations', () => {
@@ -152,14 +154,24 @@ describe('SQLite repositories', () => {
       rawUnit: 'cm',
     };
     const fieldEvidence: FieldEvidenceRecord = {
-      schemaVersion: '3.0.0',
+      schemaVersion: '4.0.0',
       evidenceId: 'field-clearance',
       status: 'APPROVED',
       visibility: 'PUBLIC',
       redaction: 'NONE',
       outcome: 'ASSEMBLY_FAILURE',
       issueType: 'PHYSICAL_CLEARANCE',
-      parts: [{ category: 'CPU', partId: cpu.partId }],
+      parts: [{ category: 'CPU', partId: cpu.partId, hardwareRevision: 'A1' }],
+      exactScope: {
+        requiredPartCategories: ['CPU'],
+        requiredContextFields: [
+          'radiators',
+          'hddCages',
+          'gpuOrientation',
+          'installedBiosVersion',
+          'componentRevisions',
+        ],
+      },
       installationContext,
       measurements: [
         {
@@ -188,17 +200,19 @@ describe('SQLite repositories', () => {
   test('round-trips a reproducible result snapshot', async () => {
     const { store } = await openStore();
     const snapshot: ResultSnapshot = {
-      snapshotFormatVersion: '2.0.0',
+      snapshotFormatVersion: '3.0.0',
       checkedAt: '2026-09-08T00:00:00.000Z',
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
       policyVersion: '1.0.0',
-      canonicalSchemaVersion: '3.0.0',
-      installationContextSchemaVersion: '2.0.0',
+      canonicalSchemaVersion: '3.1.0',
+      installationContextSchemaVersion: '2.1.0',
+      knowledgeSnapshotSchemaVersion: '1.0.0',
+      evidencePolicyVersion: '1.0.0',
       identityMapperVersion: '1.0.0',
       providerVersions: [],
       inputSnapshot: {
-        build: { schemaVersion: '3.0.0', parts: [cpu] },
+        build: { schemaVersion: '3.1.0', parts: [cpu] },
         intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
         installationContext,
         policyProfile: {
@@ -206,6 +220,7 @@ describe('SQLite repositories', () => {
           policyVersion: '1.0.0',
           capabilities: [],
         },
+        knowledgeSnapshots: [],
       },
       evidenceSnapshot: { evidenceVersion: '1.0.0', evidenceIds: [] },
       resultSnapshot: {

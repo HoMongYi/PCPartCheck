@@ -8,7 +8,7 @@ PCPartCheck는 PC 부품 사양을 공급처와 무관한 Canonical 형식으로
 
 CPU 소켓과 메모리 세대처럼 명확한 일치 조건부터 케이스 내부 공간, 냉각, 저장장치 자원, PSU 용량과 커넥터까지 검사합니다. 데이터가 부족한 항목은 추정해 통과시키지 않고 `UNKNOWN`으로 남깁니다. 결과에는 사용한 입력, Evidence, 엔진·RuleSet·Schema·Provider 버전이 함께 들어가므로 당시 판정을 재현할 수 있습니다.
 
-현재 패키지와 엔진 버전은 `0.1.0`입니다. Canonical Schema `3.0.0`, Installation Context `2.0.0`, Field Evidence `3.0.0`, Result Snapshot `2.0.0`, Identity Mapper `1.1.0`을 사용합니다. 이 버전들은 서로 다른 계약을 나타내며 한꺼번에 같은 번호로 올리지 않습니다. 세부 정책은 [Versioning 문서](docs/VERSIONING.md)에 있습니다.
+현재 엔진과 direct-contract package 버전은 `0.2.0`입니다. Canonical Schema `3.1.0`, Installation Context `2.1.0`, Knowledge Snapshot `1.0.0`, Field Evidence `4.0.0`, Evidence Policy `1.0.0`, Result Snapshot `3.0.0`, Standard RuleSet `0.2.0`을 사용합니다. 내부 dependency만 갱신된 package는 `0.1.1`입니다. 각 숫자는 서로 다른 계약을 나타내며 세부 map은 [Versioning 문서](docs/VERSIONING.md)에 있습니다.
 
 ## 하지 않는 일
 
@@ -44,6 +44,7 @@ PCPartCheck는 모든 부품 조합의 실제 조립 가능성을 보증하지 �
 - GPU 길이, CPU 쿨러 높이, PSU 길이, 라디에이터 위치·크기·두께, 쿨러 소켓
 - M.2 Key·Interface, M.2/SATA 공유, PCIe 물리 슬롯과 대역폭 주의 사항
 - 계산된 Power Budget, PSU 정격 용량, PCIe/EPS 전원 커넥터 공급
+- 명시적 CPU 지원 relation, Provider가 부여한 BIOS release ordinal, Case의 PSU form-factor membership
 - Fan header 수·전류, RGB 전압·방식, 메모리 data rate와 4-DIMM 주의 사항
 
 기본 Reference Profile에서 물리적으로 설치나 구동을 막는 항목은 REQUIRED, 대역폭·Header·Memory rate 항목은 ADVISORY입니다. 세부 Rule 목록은 [Rule Engine 문서](docs/RULE-ENGINE.md)를 참고하세요.
@@ -54,9 +55,11 @@ PCPartCheck는 모든 부품 조합의 실제 조립 가능성을 보증하지 �
 
 Provider는 snapshot의 공식 `/schemas` 파일로 fingerprint를 계산하고 각 원본 record를 검증합니다. 매핑 결과도 `CanonicalPartSchema`를 통과해야 `IMPORTED`가 됩니다. RAM의 `speed`는 BuildCores Adapter 안에서만 판매 사양 data rate로 해석하며, 일반 MHz→MT/s 변환 규칙은 없습니다. 고정 기준과 현재 upstream 상태는 [BuildCores Provider 문서](docs/providers/buildcores.md)에 구분해 적었습니다.
 
+CPU 지원과 BIOS release 같은 관계형 사실은 Canonical Part의 거대한 배열이 아니라 immutable Knowledge Snapshot으로 전달합니다. 각 snapshot은 provider/version, collectedAt, source URI/hash와 relation provenance를 보존하며, 같은 provider의 새 snapshot만 명시적으로 이전 snapshot을 supersede할 수 있습니다. 전체 계약은 [Knowledge Snapshot 문서](docs/KNOWLEDGE-SNAPSHOT.md)에 있습니다.
+
 ## Field Evidence
 
-승인된 `EXACT` Evidence는 같은 부품과 같은 Installation Context에서 나온 현장 기록입니다. 조건 없는 실제 조립 실패는 관련 Rule을 `INCOMPATIBLE`로, 해결 조건이 있는 성공은 `CONDITIONAL`로 바꿀 수 있습니다. 이미 결정론적 Hard Rule이 실패했다면 성공 Evidence 한 건으로 뒤집지 않습니다.
+승인된 v4 `EXACT` Evidence는 완전한 부품 범위, 각 hardware revision, installed BIOS와 issue별 material context가 모두 일치하는 현장 기록입니다. 조건 없는 실제 조립 실패는 관련 Rule을 `INCOMPATIBLE`로, 해결 조건이 있는 성공은 `CONDITIONAL`로 바꿀 수 있습니다. 이미 결정론적 Hard Rule이 실패했다면 성공 Evidence 한 건으로 뒤집지 않습니다.
 
 `SIMILAR` Evidence는 비슷한 과거 사례를 최대 3건까지 보여 주는 참고 자료입니다. Similar Failure만으로 현재 구성의 Status나 Decision은 달라지지 않습니다. 공개 범위는 인증 결과에 따라 API 계층에서 제한합니다. 자세한 계약은 [Field Evidence 문서](docs/FIELD-EVIDENCE.md)에 있습니다.
 
@@ -77,6 +80,7 @@ import {
   CANONICAL_SCHEMA_VERSION,
   ENGINE_VERSION,
   INSTALLATION_CONTEXT_SCHEMA_VERSION,
+  KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
   createCompatibilityEngine,
 } from '@pcpartcheck/core';
 import { DEMO_SCENARIOS } from '@pcpartcheck/demo-data';
@@ -97,8 +101,10 @@ const engine = createCompatibilityEngine({
     ruleSetVersion: STANDARD_RULE_SET_VERSION,
     canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
     installationContextSchemaVersion: INSTALLATION_CONTEXT_SCHEMA_VERSION,
+    knowledgeSnapshotSchemaVersion: KNOWLEDGE_SNAPSHOT_SCHEMA_VERSION,
+    evidencePolicyVersion: '1.0.0',
     identityMapperVersion: IDENTITY_MAPPER_VERSION,
-    providerVersions: [{ providerId: 'synthetic-demo', providerVersion: '1.0.0' }],
+    providerVersions: [{ providerId: 'synthetic-demo', providerVersion: '2.0.0' }],
   },
 });
 
@@ -178,8 +184,8 @@ PCPartCheck 소스 코드는 [Apache License 2.0](LICENSE)으로 배포합니다
 
 ## 알려진 데이터 한계
 
-BuildCores에는 Storage 장치의 M.2 Key, M.2/SATA 공유 조건, 메인보드 PCIe 슬롯의 physical/electrical 구분, 추가 EPS의 필수 여부, Fan 두께가 없습니다. 이 값들은 추정하지 않으므로 관련 Rule이 `UNKNOWN`을 반환할 수 있습니다. 제조사 사양·CPU 지원·BIOS·Memory QVL Provider, 실제 계정 시스템, 분산 Attachment Storage도 아직 Reference 구현에 연결되지 않았습니다.
+BuildCores에는 Storage 장치의 M.2 Key, M.2/SATA 공유 조건, 메인보드 PCIe 슬롯의 physical/electrical 구분, 추가 EPS의 필수 여부, Fan 두께가 없습니다. 이 값들은 추정하지 않으므로 관련 Rule이 `UNKNOWN`을 반환할 수 있습니다. Reference 구성의 CPU/BIOS Knowledge는 합성 fixture이며, 실제 제조사 Provider, Memory QVL Provider, 계정 시스템과 분산 Attachment Storage는 연결하지 않았습니다.
 
 ## Roadmap
 
-0.1 공개 기준선 다음에는 실제 운영 데이터 없이도 계약을 깨지 않는 범위에서 Provider 확장, Evidence 운영 저장소, 정책 Profile 관리, 실데이터 기반 Similarity 보정을 검토합니다. 진행 순서와 제외 범위는 [Roadmap](docs/ROADMAP.md)에 적었습니다.
+0.2 release candidate 다음에는 별도 승인과 확정 release SHA를 기준으로 consumer pin 갱신, compatibility adapter 통합을 진행합니다. Provider 확장, Evidence 운영 저장소, 정책 Profile 관리와 Similarity 보정은 별도 작업입니다. 진행 순서와 제외 범위는 [Roadmap](docs/ROADMAP.md)에 적었습니다.
