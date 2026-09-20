@@ -18,15 +18,15 @@ Mermaid 원본은 [`docs/diagrams/package-dependencies.mmd`](diagrams/package-de
 
 ![Runtime data flow](assets/runtime-data-flow.svg)
 
-외부 record는 Provider의 원본 Schema를 먼저 통과합니다. 그다음 단위 정규화, 결정론적 Identity mapping을 거쳐 Canonical Part가 됩니다. Rule은 이 Canonical 값과 typed Installation Context, Capability 정책만 읽습니다. Exact Field Evidence를 적용한 결과는 Status와 Decision으로 집계되며, 입력·Evidence·버전과 함께 Result Snapshot에 보존됩니다.
+외부 record는 Provider의 원본 Schema를 먼저 통과합니다. 그다음 단위 정규화, 결정론적 Identity mapping을 거쳐 Canonical Part가 됩니다. 관계형 CPU/BIOS 사실은 별도 Knowledge Snapshot으로 검증·정렬합니다. Rule은 Canonical 값, typed Installation Context, active Knowledge leaf, Capability 정책만 읽습니다. Exact Field Evidence 결과는 독립 EngineRule로 집계되며 입력·Knowledge·Evidence·버전과 함께 Result Snapshot에 보존됩니다.
 
 Similar Evidence는 API와 Demo가 보여 주는 참고 정보일 뿐 집계 단계로 들어가지 않습니다. Optional LLM도 Snapshot 이후에 설명을 만들며 판정 경로로 돌아가는 화살표가 없습니다. Mermaid 원본은 [`docs/diagrams/runtime-data-flow.mmd`](diagrams/runtime-data-flow.mmd)입니다.
 
 ## 재현 가능한 Snapshot
 
-Result Snapshot에는 `engineVersion`, `ruleSetVersion`, `policyVersion`, `canonicalSchemaVersion`, `installationContextSchemaVersion`, `identityMapperVersion`, `providerVersions`, `inputSnapshot`, `evidenceSnapshot`, `resultSnapshot`이 들어갑니다. Snapshot format은 현재 `2.0.0`입니다.
+Result Snapshot에는 `engineVersion`, `ruleSetVersion`, `policyVersion`, `canonicalSchemaVersion`, `installationContextSchemaVersion`, `knowledgeSnapshotSchemaVersion`, `evidencePolicyVersion`, `identityMapperVersion`, `providerVersions`, Knowledge를 포함한 `inputSnapshot`, `evidenceSnapshot`, `resultSnapshot`이 들어갑니다. Snapshot format은 현재 `3.0.0`입니다.
 
-Replay는 현재 런타임 버전과 기록된 버전을 먼저 비교합니다. 하나라도 다르면 `ReplayVersionMismatchError`, 같은 입력으로 다시 계산한 결과가 기록과 다르면 `ReplayResultMismatchError`를 냅니다. 이전 결과를 새 의미로 조용히 다시 해석하지 않습니다.
+Replay는 현재 런타임 버전과 기록된 버전을 먼저 비교합니다. 하나라도 다르면 `ReplayVersionMismatchError`, 같은 입력으로 다시 계산한 결과가 기록과 다르면 `ReplayResultMismatchError`를 냅니다. Knowledge와 Evidence Policy 입력을 보존하지 않은 Snapshot `2.0.0`은 v0.2 runtime에서 거부하며 새 의미로 다시 해석하지 않습니다.
 
 ## Reference 구성
 

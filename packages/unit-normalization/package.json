@@ -1,6 +1,6 @@
 {
   "name": "@pcpartcheck/unit-normalization",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Dimension-safe canonical unit normalization for PCPartCheck",
   "license": "Apache-2.0",
   "type": "module",

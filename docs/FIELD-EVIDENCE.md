@@ -1,6 +1,6 @@
 # Field Evidence
 
-Field Evidence는 특정 부품과 설치 맥락에서 실제로 관찰한 조립 결과입니다. 현재 Schema version은 `3.0.0`입니다.
+Field Evidence는 특정 부품과 설치 맥락에서 실제로 관찰한 조립 결과입니다. 현재 write Schema는 `4.0.0`, Evidence Policy는 `1.0.0`입니다. v3 record는 historical read만 허용하며 v4 판정 입력으로 조용히 바꾸지 않습니다.
 
 ## 상태와 수정
 
@@ -10,13 +10,15 @@ Field Evidence는 특정 부품과 설치 맥락에서 실제로 관찰한 조�
 
 ## EXACT
 
-Issue type, Canonical Part ID 집합, versioned Installation Context가 같아야 `EXACT`입니다. APPROVED Exact Evidence만 관련 판정에 쓸 수 있습니다.
+Issue type, 완전한 Canonical Part 범위, 모든 hardware revision, installed BIOS와 issue별 required context가 같아야 `EXACT`입니다. 하나라도 누락되거나 다르면 `SIMILAR`입니다. `THERMAL`은 Evidence Policy 1.0에서 자동 Exact 판정을 만들지 않습니다. APPROVED active leaf만 관련 판정에 쓸 수 있습니다.
 
 - 조건 없는 `ASSEMBLY_FAILURE`는 기본적으로 `INCOMPATIBLE`
 - 해결 조건이 있는 `CONDITIONAL_SUCCESS`는 `CONDITIONAL`
 - `ASSEMBLY_SUCCESS`는 base 결과가 Hard `INCOMPATIBLE`이 아닐 때만 `PASS`
 
 즉, 성공 사례 한 건이 결정론적 Hard Rule 실패를 뒤집지 않습니다.
+
+동일 issue/scope에서 active approved outcome이 충돌하거나 승인 successor가 여러 갈래면 임의 leaf를 선택하지 않고 `REVIEW_REQUIRED`로 남깁니다. supersession은 기존 record를 수정하지 않는 immutable edge이며 dangling, self, cycle을 거부합니다.
 
 ## SIMILAR
 

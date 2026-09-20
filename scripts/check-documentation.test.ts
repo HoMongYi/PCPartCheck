@@ -91,3 +91,25 @@ test('compares the Mermaid graph with workspace dependencies', async () => {
     'Package diagram is missing dependency edge: @pcpartcheck/evidence --> @pcpartcheck/core',
   );
 });
+
+test('rejects live-source instructions and source-specific business fields', async () => {
+  const root = await createDocumentationFixture({
+    readme: [
+      '# Fixture',
+      'Run `curl https://vendor.invalid/live-catalog`.',
+      `Do not expose ${'Product' + 'No'} in the public contract.`,
+    ].join('\n'),
+    packageDiagram: [
+      'flowchart TD',
+      '  core["@pcpartcheck/core"]',
+      '  evidence["@pcpartcheck/evidence"]',
+      '  evidence --> core',
+    ].join('\n'),
+  });
+
+  const result = runDocumentationCheck(root);
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('Live source instruction is forbidden');
+  expect(result.stderr).toContain('Source-specific business field is forbidden');
+});

@@ -760,6 +760,7 @@ describe('Fastify reference API', () => {
     expect(openapi.statusCode).toBe(200);
     expect(openapi.json()).toMatchObject({
       openapi: expect.stringMatching(/^3\./u),
+      info: { title: 'PCPartCheck Reference API', version: '0.2.0' },
       paths: {
         '/health': expect.any(Object),
         '/v1/compatibility/check': expect.any(Object),

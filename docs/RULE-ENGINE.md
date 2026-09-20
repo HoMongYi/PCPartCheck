@@ -35,7 +35,7 @@ Issue ID는 `blockingRuleIds`, `reviewRuleIds`, `advisoryRuleIds`로 따로 보�
 
 Coverage의 원본은 비율이 아닙니다. Required와 Advisory에는 `total`, `evaluated`, `unknown`, `notChecked`, Disabled에는 `total`, `notChecked`를 저장합니다. UI가 비율이 필요하면 이 숫자로 표시 시점에 계산합니다. 원본 결과를 하나의 퍼센트로 축약하지 않습니다.
 
-## 표준 RuleSet 0.1.0
+## 표준 RuleSet 0.2.0
 
 | 영역 | Rule ID |
 |---|---|
@@ -43,7 +43,42 @@ Coverage의 원본은 비율이 아닙니다. Required와 Advisory에는 `total`
 | 공간·냉각 | `gpu-clearance`, `cpu-cooler-height`, `psu-length`, `radiator-mount`, `cpu-cooler-socket` |
 | 저장장치·PCIe | `m2-slot-compatibility`, `m2-sata-sharing`, `pcie-slot-compatibility`, `pcie-bandwidth-advisory` |
 | 전원 | `psu-capacity`, `psu-connectors` |
+| 관계형 Knowledge | `cpu-support`, `minimum-bios` |
+| 폼팩터·현장 근거 | `psu-form-factor`, `exact-field-evidence` |
 | 주의 사항 | `fan-header-count`, `fan-header-current`, `rgb-header`, `memory-data-rate-advisory`, `four-dimm-data-rate` |
+
+### CPU support
+
+| active relation | Status |
+|---|---|
+| 모든 provider가 `SUPPORTED` | `PASS` |
+| 모든 provider가 `UNSUPPORTED` | `INCOMPATIBLE` |
+| relation 없음 또는 revision 불충분 | `UNKNOWN` |
+| active provider 결과 충돌 | `REVIEW_REQUIRED` |
+
+지원 목록이 없다는 사실을 비지원으로 해석하지 않습니다.
+
+### Minimum BIOS
+
+| 조건 | Status |
+|---|---|
+| requirement `NONE` | `PASS` |
+| requirement 또는 현재 BIOS가 불명확 | `UNKNOWN` |
+| installed release ordinal이 minimum 이상 | `PASS` |
+| installed release ordinal이 minimum 미만 | `INCOMPATIBLE` |
+| release mapping 중복·provider 충돌 | `REVIEW_REQUIRED` |
+
+BIOS 문자열을 직접 정렬하지 않습니다. Provider가 같은 snapshot에서 부여한 `releaseOrdinal`만 비교합니다.
+
+### PSU form factor
+
+| 조건 | Status |
+|---|---|
+| Case의 canonical 지원 목록에 PSU 값 포함 | `PASS` |
+| 목록은 있으나 PSU 값 미포함 | `INCOMPATIBLE` |
+| Case, PSU 또는 spec 누락 | `UNKNOWN` |
+
+이 평가는 PSU length clearance와 독립적이며 alias나 치수로 form factor를 추정하지 않습니다.
 
 ## Clearance 판정 행렬
 

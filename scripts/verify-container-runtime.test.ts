@@ -40,13 +40,13 @@ test('verifies the running API, OpenAPI document, and API-backed Demo page', asy
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({
         openapi: '3.1.0',
-        info: { title: 'PCPartCheck', version: '0.1.0' },
+        info: { title: 'PCPartCheck', version: '0.2.0' },
         paths: {},
       }));
       return;
     }
     response.setHeader('content-type', 'text/html; charset=utf-8');
-    response.end('<h1>PCPartCheck</h1><span>CANONICAL 3.0.0</span><article>socket-mismatch</article>');
+    response.end('<h1>PCPartCheck</h1><span>CANONICAL 3.1.0</span><article>socket-mismatch</article>');
   });
 
   await new Promise<void>((resolveListen, reject) => {
