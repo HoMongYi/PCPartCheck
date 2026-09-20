@@ -284,7 +284,7 @@ export function CompatibilityDashboard({
 
       <footer>
         <span>PCPartCheck / REFERENCE BUILD</span>
-        <span>ENGINE 0.1.0 · RULESET 0.1.0</span>
+        <span>ENGINE 0.2.0 · RULESET 0.2.0</span>
       </footer>
     </main>
   );
