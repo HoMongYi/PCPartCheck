@@ -11,6 +11,7 @@ export * from './canonical/usb-header-spec.js';
 export * from './capability.js';
 export * from './build-intent.js';
 export * from './build.js';
+export * from './contract-upgrades.js';
 export * from './engine.js';
 export * from './installation-context.js';
 export * from './rule.js';

@@ -40,8 +40,8 @@ async function createServer(
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
       policyVersion: '1.0.0',
-      canonicalSchemaVersion: '3.0.0',
-      installationContextSchemaVersion: '2.0.0',
+      canonicalSchemaVersion: '3.1.0',
+      installationContextSchemaVersion: '2.1.0',
       identityMapperVersion: '1.1.0',
       providerVersions: [],
       inputSnapshot: {
@@ -233,10 +233,10 @@ async function createServer(
 }
 
 const validCheckRequest = {
-  build: { schemaVersion: '3.0.0', parts: [] },
+  build: { schemaVersion: '3.1.0', parts: [] },
   intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
   installationContext: {
-    schemaVersion: '2.0.0',
+    schemaVersion: '2.1.0',
     radiators: [],
     hddCages: [],
     gpuOrientation: 'HORIZONTAL',
@@ -265,7 +265,7 @@ describe('Fastify reference API', () => {
     expect(response.json()).toEqual({
       status: 'ok',
       service: 'pcpartcheck',
-      canonicalSchemaVersion: '3.0.0',
+      canonicalSchemaVersion: '3.1.0',
     });
   });
 
@@ -279,7 +279,7 @@ describe('Fastify reference API', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      canonicalSchemaVersion: '3.0.0',
+      canonicalSchemaVersion: '3.1.0',
       resultSnapshot: { decision: 'ALLOW' },
     });
     expect(services.checkCompatibility).toHaveBeenCalledOnce();
@@ -520,7 +520,7 @@ describe('Fastify reference API', () => {
         parts: [
           { category: 'CPU', partId: '22222222-2222-4222-8222-222222222222' },
         ],
-        installationContext: { schemaVersion: '2.0.0' },
+        installationContext: { schemaVersion: '2.1.0' },
       },
     });
     const repeatApproval = await server.inject({

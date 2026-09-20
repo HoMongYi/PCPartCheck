@@ -125,7 +125,7 @@ export type PcCaseSpec = Static<typeof PcCaseSpecSchema>;
 
 export const PsuSpecSchema = Type.Object(
   {
-    formFactor: PsuFormFactorSchema,
+    formFactor: Type.Optional(PsuFormFactorSchema),
     ratedPowerW: PositiveNumberSchema,
     lengthMm: Type.Optional(PositiveNumberSchema),
     atxVersion: Type.Optional(Type.String({ minLength: 1 })),

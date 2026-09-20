@@ -4,12 +4,22 @@ import type { JsonValue } from './canonical/primitives.js';
 import {
   JsonValueSchema,
   NonNegativeIntegerSchema,
+  PartIdSchema,
   PositiveIntegerSchema,
   PositiveNumberSchema,
 } from './canonical/primitives.js';
 import { RadiatorPositionSchema } from './canonical/radiator-mount-spec.js';
 
-export const INSTALLATION_CONTEXT_SCHEMA_VERSION = '2.0.0' as const;
+export const INSTALLATION_CONTEXT_SCHEMA_VERSION = '2.1.0' as const;
+
+export const ComponentRevisionSchema = Type.Object(
+  {
+    partId: PartIdSchema,
+    hardwareRevision: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+export type ComponentRevision = Static<typeof ComponentRevisionSchema>;
 
 export const InstalledRadiatorSchema = Type.Object(
   {
@@ -65,6 +75,7 @@ export const InstallationContextSchema = Type.Object(
       Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
     ),
     pciePower: Type.Optional(PciePowerInstallationSchema),
+    componentRevisions: Type.Optional(Type.Array(ComponentRevisionSchema)),
     installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
     customFacts: Type.Optional(Type.Record(Type.String(), JsonValueSchema)),
   },

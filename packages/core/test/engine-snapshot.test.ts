@@ -11,7 +11,7 @@ import type {
 } from '../src/index.js';
 
 const cpu = {
-  schemaVersion: '3.0.0',
+  schemaVersion: '3.1.0',
   partId: '11111111-1111-4111-8111-111111111111',
   category: 'CPU',
   manufacturer: 'Example',
@@ -21,7 +21,7 @@ const cpu = {
 } as const;
 
 const installationContext: InstallationContext = {
-  schemaVersion: '2.0.0',
+  schemaVersion: '2.1.0',
   radiators: [],
   hddCages: [],
   gpuOrientation: 'HORIZONTAL',
@@ -47,8 +47,8 @@ function createEngine(
     versions: {
       engineVersion: '0.1.0',
       ruleSetVersion: '0.1.0',
-      canonicalSchemaVersion: '3.0.0',
-      installationContextSchemaVersion: '2.0.0',
+      canonicalSchemaVersion: '3.1.0',
+      installationContextSchemaVersion: '2.1.0',
       identityMapperVersion: '0.1.0',
       providerVersions: [
         {
@@ -67,7 +67,7 @@ function input(
   capabilities: PolicyProfile['capabilities'],
 ): CompatibilityCheckInput {
   return {
-    build: { schemaVersion: '3.0.0', parts: [cpu] },
+    build: { schemaVersion: '3.1.0', parts: [cpu] },
     intent: { schemaVersion: '1.0.0', useCase: 'NEW_BUILD' },
     installationContext,
     policyProfile: {
@@ -216,8 +216,8 @@ test('snapshot captures every version and immutable audit input', async () => {
     engineVersion: '0.1.0',
     ruleSetVersion: '0.1.0',
     policyVersion: '1.0.0',
-    canonicalSchemaVersion: '3.0.0',
-    installationContextSchemaVersion: '2.0.0',
+    canonicalSchemaVersion: '3.1.0',
+    installationContextSchemaVersion: '2.1.0',
     identityMapperVersion: '0.1.0',
     providerVersions: [
       {
@@ -291,10 +291,29 @@ test('invalid canonical input is rejected instead of becoming pass', async () =>
       {
         ...checkInput,
         build: {
-          schemaVersion: '3.0.0',
+          schemaVersion: '3.1.0',
           parts: [{ ...cpu, spec: { rawProviderSocket: 'AM5' } }],
         },
       } as unknown as CompatibilityCheckInput,
     ),
   ).rejects.toThrow('Invalid canonical build input');
+});
+
+test('installation context rejects duplicate component revision identities', async () => {
+  const engine = createEngine([]);
+  const checkInput = input([]);
+  const duplicatePartId = '22222222-2222-4222-8222-222222222222';
+
+  await expect(
+    engine.check({
+      ...checkInput,
+      installationContext: {
+        ...checkInput.installationContext,
+        componentRevisions: [
+          { partId: duplicatePartId, hardwareRevision: '1.0' },
+          { partId: duplicatePartId, hardwareRevision: '1.1' },
+        ],
+      },
+    }),
+  ).rejects.toThrow('Duplicate component revision partId');
 });

@@ -87,6 +87,11 @@ function assertInput(input: CompatibilityCheckInput): void {
     throw new Error('Invalid evidence snapshot input');
   }
   assertUniqueIds(
+    input.installationContext.componentRevisions?.map(({ partId }) => partId) ??
+      [],
+    'component revision partId',
+  );
+  assertUniqueIds(
     input.policyProfile.capabilities.map(({ capabilityId }) => capabilityId),
     'capability policy',
   );

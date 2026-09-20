@@ -3,7 +3,9 @@ import {
   CanonicalBuildSchema,
   CanonicalPartSchema,
   CapabilityModeSchema,
+  ComponentRevisionSchema,
   GpuOrientationSchema,
+  INSTALLATION_CONTEXT_SCHEMA_VERSION,
   InstalledHddCageSchema,
   InstalledRadiatorSchema,
   PciePowerInstallationSchema,
@@ -62,7 +64,7 @@ const RecursiveJsonValueBoundarySchema = Type.Any({
 
 export const ApiInstallationContextSchema = Type.Object(
   {
-    schemaVersion: Type.Literal('2.0.0'),
+    schemaVersion: Type.Literal(INSTALLATION_CONTEXT_SCHEMA_VERSION),
     radiators: Type.Optional(Type.Array(InstalledRadiatorSchema)),
     hddCages: Type.Optional(Type.Array(InstalledHddCageSchema)),
     gpuOrientation: Type.Optional(GpuOrientationSchema),
@@ -70,6 +72,7 @@ export const ApiInstallationContextSchema = Type.Object(
       Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
     ),
     pciePower: Type.Optional(PciePowerInstallationSchema),
+    componentRevisions: Type.Optional(Type.Array(ComponentRevisionSchema)),
     installedBiosVersion: Type.Optional(Type.String({ minLength: 1 })),
     customFacts: Type.Optional(
       Type.Record(Type.String(), RecursiveJsonValueBoundarySchema),

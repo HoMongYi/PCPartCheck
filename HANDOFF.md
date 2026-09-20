@@ -1,16 +1,16 @@
 # PCPartCheck 작업 인계
 
-## 현재 상태 — v0.2.0 계획
+## 현재 상태 — Phase 3 / v0.2.0 구현
 
-- 계획 branch: `docs/phase-3-pcpartcheck-v0.2-plan`
-- 계획 base: `v0.1.0` / `e28d542ab2db5ce5d8294fe96add8942047f4a66`
+- 구현 branch: `feat/phase-3-pcpartcheck-v0.2`
+- 구현 base: `35479978e7c42714703f848ac9e734f324d4fa37`
 - 계획 파일: `docs/superpowers/plans/2026-09-20-pcpartcheck-v0.2-design-implementation-plan.md`
-- 범위: provider-neutral Knowledge Snapshot, CPU support/minimum BIOS, case ↔ PSU form factor, Exact Field Evidence orchestration의 설계와 Task별 TDD 구현 계획
-- 구현 상태: NOT STARTED. 구현 branch, package/schema 변경, tag, release, publish, deploy는 만들지 않았다.
-- 경계: live network/provider 구현 없이 synthetic fixture만 계획했고, 별도 product repository와 engine pin은 수정하지 않았다.
-- 다음 단계: 사용자가 deliberate version boundary와 equal-authority provider conflict policy를 포함한 계획을 검토하고 명시적으로 승인한 뒤 Task 1을 시작한다.
-
-계획 worktree의 frozen offline install은 로컬 pnpm store에 `d3-geo@3.1.1` tarball이 없어 완료되지 않았다. 기존 checkout의 unit command는 sandbox `spawn EPERM`으로 시작하지 못했고, sandbox 밖 재시도는 approval service HTTP 429로 실행되지 않았다. 이는 assertion 실패가 아니며 v0.2 구현 시작 전에 clean worktree에서 baseline 전체 검증이 필요하다.
+- Task 1: COMPLETE. Canonical `3.1.0`은 PSU form factor를 unknown으로 보존할 수 있고, Installation Context `2.1.0`은 provider-neutral component hardware revision을 표현한다.
+- v0.1 계약 upgrade helper는 입력을 복제해 version literal만 바꾸며, 구형 계약에서 유효하지 않았던 사실을 거부한다. component revision의 중복 part identity는 engine boundary에서 거부한다.
+- 검증: focused 48건, unit 224건, integration 34건, typecheck, lint, dependency boundaries, frozen install, 전체 build PASS.
+- 공개 package와 engine version은 `0.1.0`을 유지한다. v0.2.0 tag/release와 Changeset은 만들지 않았다.
+- clean-room 경계: 외부 network/provider 접근과 Compuzone-specific code/data는 0이며 HMY-PCPartCheck는 변경하지 않았다.
+- Task 2: NOT STARTED. 사용자 승인 전 Knowledge Snapshot 구현을 시작하지 않는다.
 
 ## v0.1.0 기준선
 
@@ -21,8 +21,8 @@ GitHub Actions run `34378180449`에서 Ubuntu와 Windows matrix, 별도 Ubuntu D
 ## 공개 Version Contract
 
 - 공개 package와 Engine: `0.1.0`
-- Canonical Schema: `3.0.0`
-- Installation Context: `2.0.0`
+- Canonical Schema: `3.1.0`
+- Installation Context: `2.1.0`
 - Field Evidence: `3.0.0`
 - Result Snapshot: `2.0.0`
 - Standard RuleSet: `0.1.0`

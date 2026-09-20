@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const EXPECTED_CANONICAL_SCHEMA_VERSION = '3.0.0';
+const EXPECTED_CANONICAL_SCHEMA_VERSION = '3.1.0';
 const API_DATA_MARKER = 'socket-mismatch';
 
 function isRecord(value) {

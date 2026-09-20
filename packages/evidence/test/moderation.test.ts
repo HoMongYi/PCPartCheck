@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 
 import * as evidence from '../src/index.js';
 
-const installationContext: InstallationContext = { schemaVersion: '2.0.0' };
+const installationContext: InstallationContext = { schemaVersion: '2.1.0' };
 
 const draftInput = {
   evidenceId: 'field-revision-2',
@@ -152,7 +152,7 @@ describe('Field Evidence moderation state machine', () => {
       expect(() => patchDraft()(finalRecord, {
         outcome: 'ASSEMBLY_SUCCESS',
         parts: [],
-        installationContext: { schemaVersion: '2.0.0' },
+        installationContext: { schemaVersion: '2.1.0' },
       }, {
         principalId: 'writer-2',
         at: '2026-09-09T02:00:00.000Z',

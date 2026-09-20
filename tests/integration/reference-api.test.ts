@@ -27,7 +27,7 @@ describe('reference API composition', () => {
         ): Promise<readonly { readonly evidenceId: string }[]>;
       };
     const services = factory();
-    const installationContext = { schemaVersion: '2.0.0' as const };
+    const installationContext = { schemaVersion: '2.1.0' as const };
     const visibilities = ['PUBLIC', 'STAFF_ONLY', 'ADMIN_ONLY'] as const;
     for (const [index, visibility] of visibilities.entries()) {
       const evidenceId = `scope-${visibility.toLocaleLowerCase('en-US')}`;
