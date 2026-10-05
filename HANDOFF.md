@@ -2,6 +2,7 @@
 
 ## 현재 상태 — Phase 3 COMPLETE / v0.2.0 released
 
+- README의 이미지 삽입을 제거하고 GitHub에서 렌더링하는 Mermaid `sequenceDiagram`으로 Reference API 검사 흐름을 설명한다. 엔진·데이터·release tag는 변경하지 않았다.
 - 구현 branch: `feat/phase-3-pcpartcheck-v0.2`
 - 구현 base/main 계획 SHA: `35479978e7c42714703f848ac9e734f324d4fa37`
 - 계획: `docs/superpowers/plans/2026-09-20-pcpartcheck-v0.2-design-implementation-plan.md`

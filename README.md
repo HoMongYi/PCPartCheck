@@ -2,7 +2,26 @@
 
 PCPartCheck는 PC 부품 사양을 공급처와 무관한 Canonical 형식으로 정리하고, 선택한 조합을 결정론적 규칙으로 검사하는 TypeScript 모노레포입니다. 같은 입력, 정책, 버전, Evidence를 다시 넣으면 같은 결과가 나와야 한다는 원칙으로 만들었습니다.
 
-![PCPartCheck 패키지 의존성](docs/assets/package-dependencies.svg)
+## 검사 흐름
+
+```mermaid
+sequenceDiagram
+    actor User as 사용자
+    participant API as Reference API
+    participant Engine as PCPartCheck 엔진
+    participant Rules as 표준 규칙과 Exact Evidence 규칙
+    User->>API: POST /v1/compatibility/check
+    API->>API: Knowledge·Evidence snapshot 검증
+    API->>Engine: check(Canonical 조합, 설치 정보, Capability 정책)
+    Engine->>Engine: 입력 스키마 검증 및 Knowledge 정렬
+    Engine->>Rules: 결정론적 규칙 평가
+    Rules-->>Engine: 규칙별 Status와 근거
+    Engine->>Engine: Capability 적용 및 Decision 집계
+    Engine-->>API: 입력·근거·버전을 담은 Result Snapshot
+    API-->>User: Decision·검토 항목·Coverage
+```
+
+Reference API와 Demo는 합성 fixture로 이 흐름을 보여 줍니다. BuildCores Provider는 별도로 준비한 로컬 snapshot을 Canonical 형식으로 가져오는 adapter이며, 위 요청에서 실시간으로 조회하지 않습니다. 패키지 의존성은 [Architecture 문서](docs/ARCHITECTURE.md)를 참고하세요.
 
 ## 이 프로젝트가 하는 일
 
@@ -157,9 +176,7 @@ $env:PCPARTCHECK_API_URL='http://127.0.0.1:3001/v1/demo'
 corepack pnpm --filter @pcpartcheck/demo-web start
 ```
 
-![실행 중인 production Demo](docs/assets/demo-overview.png)
-
-Screenshot은 production build를 Playwright로 직접 열어 생성했습니다. 화면의 데이터는 실제 고객이나 회사 데이터가 아닌 합성 fixture입니다.
+Demo Web은 Reference API의 합성 조립 시나리오와 검사 결과를 표시합니다. 화면의 데이터는 실제 고객이나 회사 데이터가 아닌 합성 fixture입니다.
 
 ## 개발과 검증
 
